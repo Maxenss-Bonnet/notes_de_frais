@@ -1,24 +1,24 @@
 import 'package:notes_de_frais/models/expense_model.dart';
-import 'package:notes_de_frais/services/ocr_service.dart';
+import 'package:notes_de_frais/services/ai_service.dart';
 
 class ExpenseController {
-  final OcrService _ocrService = OcrService();
+  final AiService _aiService = AiService();
 
-  Future<ExpenseModel> processImage(String imagePath) async {
-    final extractedText = await _ocrService.getTextFromImage(imagePath);
+  Future<ExpenseModel> processImages(List<String> filePaths) async {
+    if (filePaths.isEmpty) {
+      // Retourne un modèle vide si aucun fichier n'est fourni
+      return ExpenseModel(imagePath: '');
+    }
 
-    // TODO: Implémenter la logique d'extraction des informations
-    // à partir de `extractedText` pour remplir le modèle.
-    // Par exemple, utiliser des expressions régulières.
+    // Appelle le nouveau service d'IA avec la liste des chemins de fichiers
+    final extractedData = await _aiService.extractExpenseDataFromFile(filePaths);
 
     return ExpenseModel(
-      imagePath: imagePath,
-      // Les valeurs ci-dessous sont des exemples et devront
-      // être extraites du texte.
-      date: DateTime.now(),
-      amount: 123.45,
-      vat: 20.0,
-      company: 'Exemple Entreprise',
+      imagePath: filePaths.first, // Garde la première image comme référence
+      date: extractedData['date'],
+      amount: extractedData['amount'],
+      vat: extractedData['vat'],
+      company: extractedData['company'],
     );
   }
 

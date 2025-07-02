@@ -1,13 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:notes_de_frais/controllers/expense_controller.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
 import 'package:notes_de_frais/utils/constants.dart';
 
 class ValidationView extends StatefulWidget {
-  final String imagePath;
+  final List<String> imagePaths;
 
-  const ValidationView({super.key, required this.imagePath});
+  const ValidationView({super.key, required this.imagePaths});
 
   @override
   State<ValidationView> createState() => _ValidationViewState();
@@ -17,11 +18,12 @@ class _ValidationViewState extends State<ValidationView> {
   final ExpenseController _controller = ExpenseController();
   Future<ExpenseModel>? _expenseFuture;
   String? _selectedCompany;
+  final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
 
   @override
   void initState() {
     super.initState();
-    _expenseFuture = _controller.processImage(widget.imagePath);
+    _expenseFuture = _controller.processImages(widget.imagePaths);
   }
 
   Future<void> _onValidate(ExpenseModel expense) async {
@@ -64,9 +66,27 @@ class _ValidationViewState extends State<ValidationView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Image.file(File(widget.imagePath)),
+                SizedBox(
+                  height: 200,
+                  child: PageView.builder(
+                    itemCount: widget.imagePaths.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Image.file(File(widget.imagePaths[index])),
+                      );
+                    },
+                  ),
+                ),
+                if (widget.imagePaths.length > 1)
+                  Center(
+                    child: Text(
+                      'Faites glisser pour voir les autres pages',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
                 const SizedBox(height: 24),
-                _buildInfoRow('Date', expense.date?.toString() ?? 'N/A'),
+                _buildInfoRow('Date', expense.date != null ? _dateFormat.format(expense.date!) : 'N/A'),
                 _buildInfoRow('Montant', '${expense.amount?.toStringAsFixed(2) ?? 'N/A'} €'),
                 _buildInfoRow('TVA', '${expense.vat?.toStringAsFixed(2) ?? 'N/A'} €'),
                 _buildInfoRow('Entreprise', expense.company ?? 'N/A'),

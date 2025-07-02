@@ -1,5 +1,5 @@
 class ExpenseModel {
-  String imagePath;
+  String imagePath; // Conservera le chemin de la première image/page
   DateTime? date;
   double? amount;
   double? vat;
