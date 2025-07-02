@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
 import 'package:notes_de_frais/services/ai_service.dart';
 import 'package:notes_de_frais/services/email_service.dart';
+import 'package:notes_de_frais/services/google_sheets_service.dart';
 import 'package:notes_de_frais/services/settings_service.dart';
 import 'package:notes_de_frais/services/storage_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,9 +14,9 @@ class ExpenseController {
   final EmailService _emailService = EmailService();
   final SettingsService _settingsService = SettingsService();
   final StorageService _storageService = StorageService();
+  final GoogleSheetsService _googleSheetsService = GoogleSheetsService();
 
   Future<ExpenseModel> processImages(List<String> originalFilePaths) async {
-    // ... (le reste de la fonction ne change pas)
     if (originalFilePaths.isEmpty) {
       return ExpenseModel(imagePath: '');
     }
@@ -50,7 +51,6 @@ class ExpenseController {
   }
 
   Future<List<String>> _convertPdfToImages(String pdfPath) async {
-    // ... (le reste de la fonction ne change pas)
     final List<String> imagePaths = [];
     PdfDocument? document;
     try {
@@ -94,12 +94,18 @@ class ExpenseController {
     final sender = dotenv.env['SENDER_EMAIL'];
     final password = dotenv.env['SENDER_APP_PASSWORD'];
     final recipient = await _settingsService.getRecipientEmail();
+    final spreadsheetId = dotenv.env['GOOGLE_SHEET_ID'];
 
     if (sender == null || password == null) {
-      throw 'Les variables d\'environnement SENDER_EMAIL ou SENDER_APP_PASSWORD ne sont pas définies. Vérifiez votre fichier .env.';
+      throw 'Les variables d\'environnement SENDER_EMAIL ou SENDER_APP_PASSWORD ne sont pas définies.';
+    }
+    if (spreadsheetId == null) {
+      throw 'La variable d\'environnement GOOGLE_SHEET_ID n\'est pas définie.';
     }
 
+    // Sauvegarde et envoi
     try {
+      // 1. Envoi par e-mail
       await _emailService.sendExpenseEmail(
         expense: expense,
         recipient: recipient,
@@ -108,13 +114,16 @@ class ExpenseController {
       );
       print('E-mail envoyé avec succès à $recipient.');
 
-      // Sauvegarde dans l'historique local APRES l'envoi réussi
+      // 2. Sauvegarde dans l'historique local
       await _storageService.saveExpense(expense);
       print('Note de frais sauvegardée dans l\'historique local.');
 
+      // 3. Ajout à Google Sheets
+      await _googleSheetsService.appendExpense(expense, spreadsheetId);
+
     } catch (e) {
-      print('Erreur lors de l\'envoi direct de l\'e-mail: $e');
-      throw 'Impossible d\'envoyer l\'e-mail. Vérifiez vos identifiants dans le fichier .env et votre connexion internet.';
+      print('Erreur lors du processus de sauvegarde et d\'envoi : $e');
+      throw 'Un problème est survenu. Vérifiez les configurations et votre connexion internet.';
     }
   }
 }
