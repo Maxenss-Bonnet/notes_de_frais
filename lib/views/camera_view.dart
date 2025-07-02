@@ -2,8 +2,6 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:pdfx/pdfx.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:notes_de_frais/views/validation_view.dart';
 
@@ -122,14 +120,9 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
       String filePath = result.files.single.path!;
 
-      if (filePath.toLowerCase().endsWith('.pdf')) {
-        final imagePaths = await _convertPdfToImages(filePath);
-        if (imagePaths.isNotEmpty) {
-          await _navigateToValidationScreen(imagePaths);
-        }
-      } else {
-        await _navigateToValidationScreen([filePath]);
-      }
+      // La logique de conversion n'est plus ici, on envoie directement le chemin.
+      await _navigateToValidationScreen([filePath]);
+
     } catch (e) {
       print('Erreur lors de la sélection de fichier: $e');
     } finally {
@@ -139,28 +132,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     }
   }
 
-  Future<List<String>> _convertPdfToImages(String pdfPath) async {
-    final List<String> imagePaths = [];
-    try {
-      final document = await PdfDocument.openFile(pdfPath);
-      final tempDir = await getTemporaryDirectory();
-
-      for (int i = 1; i <= document.pagesCount; i++) {
-        final page = await document.getPage(i);
-        final pageImage = await page.render(width: page.width, height: page.height);
-        await page.close();
-
-        if (pageImage != null) {
-          final imageFile = File('${tempDir.path}/pdf_page_${i}_${DateTime.now().millisecondsSinceEpoch}.png');
-          await imageFile.writeAsBytes(pageImage.bytes);
-          imagePaths.add(imageFile.path);
-        }
-      }
-    } catch (e) {
-      print("Erreur lors de la conversion du PDF: $e");
-    }
-    return imagePaths;
-  }
+  // SUPPRESSION DE LA FONCTION _convertPdfToImages QUI EST MAINTENANT DANS LE CONTROLLER
 
   @override
   Widget build(BuildContext context) {

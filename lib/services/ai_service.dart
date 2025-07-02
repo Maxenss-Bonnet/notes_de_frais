@@ -13,13 +13,13 @@ class AiService {
     apiKey: dotenv.env['GEMINI_API_KEY']!,
   );
 
-  Future<Map<String, dynamic>> extractExpenseDataFromFile(List<String> filePaths) async {
-    final prompt = _buildPrompt();
+  Future<Map<String, dynamic>> extractExpenseDataFromFiles(List<String> imagePaths) async {
+    final prompt = _buildEnhancedPrompt();
     final List<DataPart> fileParts = [];
 
-    for (final path in filePaths) {
+    for (final path in imagePaths) {
       final mimeType = lookupMimeType(path);
-      if (mimeType != null) {
+      if (mimeType != null && mimeType.startsWith('image/')) {
         fileParts.add(
           DataPart(mimeType, await File(path).readAsBytes()),
         );
@@ -51,21 +51,29 @@ class AiService {
     return {};
   }
 
-  TextPart _buildPrompt() {
+  TextPart _buildEnhancedPrompt() {
     return TextPart(
         '''
-      En tant qu'expert en analyse de reçus et factures, analyse le(s) document(s) ci-joint(s).
-      Extrais les informations ci-dessous et retourne-les au format JSON.
-      - date: La date de la transaction au format AAAA-MM-JJ.
-      - amount: Le montant total TTC payé, sous forme de nombre (double).
-      - vat: Le montant total de la TVA, sous forme de nombre (double). Si plusieurs TVA, fais la somme.
-      - company: Le nom du vendeur ou du magasin.
+      Tu es un expert-comptable spécialisé dans l'analyse de documents. Ta mission est d'extraire les informations suivantes des images jointes.
 
-      Règles importantes :
-      1. Ne retourne QUE le bloc de code JSON, sans aucun autre texte ou explication.
-      2. Si une information n'est pas trouvée, sa valeur doit être `null`.
-      3. Le montant total (`amount`) est généralement le plus grand montant sur le reçu, souvent associé à des mots comme "TOTAL", "Total TTC", ou "Net à payer".
-      4. Le nom de l'entreprise (`company`) est souvent en haut du ticket.
+      **Instructions étape par étape :**
+
+      1.  **Analyse Globale :**
+          * Examine l'ensemble des images. S'il y en a plusieurs, elles représentent les pages séquentielles d'un seul et même document.
+          * Les informations importantes, comme le total à payer, peuvent se trouver sur la dernière page/image.
+
+      2.  **Extraction des Données Spécifiques :**
+          * **`company`**: Trouve le nom du magasin ou du fournisseur. Il est généralement en en-tête, en gros caractères (ex: "IKEA", "Amazon", "QUINCAILLERIE PORTALET").
+          * **`date`**: Trouve la date principale de la facture ou du ticket. Formate-la impérativement en **AAAA-MM-JJ**.
+          * **`amount`**: Identifie le montant **TOTAL** payé par le client (TTC). Cherche les mots-clés les plus pertinents comme "Total TTC", "NET A PAYER", "TOTAL", "Total articles". Ignore les totaux partiels ou le total Hors Taxes (HT). Pour le ticket IKEA, le total se trouve sur la deuxième page.
+          * **`vat`**: Identifie le montant total de la TVA. Cherche des lignes spécifiques comme "Total TVA", "Dont TVA". Pour la facture Amazon, il y a une section "Récapitulatif de la TVA" sur la deuxième page. Si plusieurs montants de TVA sont listés (par taux), **fais la somme** pour ne retourner qu'une seule valeur numérique.
+
+      3.  **Formatage de la Sortie :**
+          * Ta réponse doit être **UNIQUEMENT** un bloc de code JSON valide.
+          * N'ajoute **AUCUN** texte, explication, ou markdown `json` avant ou après le JSON.
+          * Si une information est introuvable, sa valeur dans le JSON doit être `null`.
+
+      Analyse maintenant les images jointes et fournis le JSON.
       '''
     );
   }
