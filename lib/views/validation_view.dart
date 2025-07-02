@@ -19,6 +19,7 @@ class _ValidationViewState extends State<ValidationView> {
   Future<ExpenseModel>? _expenseFuture;
   String? _selectedCompany;
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -34,10 +35,33 @@ class _ValidationViewState extends State<ValidationView> {
       return;
     }
     expense.associatedTo = _selectedCompany;
-    await _controller.saveExpense(expense);
 
-    if (mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+    setState(() => _isSending = true);
+
+    try {
+      await _controller.saveExpense(expense);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Note de frais envoyée avec succès !'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur : ${e.toString()}', style: const TextStyle(color: Colors.white)),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
     }
   }
 
@@ -56,7 +80,7 @@ class _ValidationViewState extends State<ValidationView> {
           if (snapshot.hasError) {
             return Center(child: Text('Erreur: ${snapshot.error}'));
           }
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData || snapshot.data!.processedImagePaths.isEmpty) {
             return const Center(child: Text('Aucune donnée extraite.'));
           }
 
@@ -69,20 +93,23 @@ class _ValidationViewState extends State<ValidationView> {
                 SizedBox(
                   height: 200,
                   child: PageView.builder(
-                    itemCount: widget.imagePaths.length,
+                    itemCount: expense.processedImagePaths.length,
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Image.file(File(widget.imagePaths[index])),
+                        child: Image.file(File(expense.processedImagePaths[index])),
                       );
                     },
                   ),
                 ),
-                if (widget.imagePaths.length > 1)
+                if (expense.processedImagePaths.length > 1)
                   Center(
-                    child: Text(
-                      'Faites glisser pour voir les autres pages',
-                      style: Theme.of(context).textTheme.bodySmall,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Faites glisser pour voir les autres pages',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ),
                   ),
                 const SizedBox(height: 24),
@@ -93,16 +120,19 @@ class _ValidationViewState extends State<ValidationView> {
                 const SizedBox(height: 24),
                 _buildCompanyDropdown(),
                 const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                if (_isSending)
+                  const Center(child: CircularProgressIndicator())
+                else
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => _onValidate(expense),
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Valider et envoyer'),
                   ),
-                  onPressed: () => _onValidate(expense),
-                  icon: const Icon(Icons.check_circle),
-                  label: const Text('Valider et envoyer'),
-                ),
               ],
             ),
           );

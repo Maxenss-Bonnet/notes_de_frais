@@ -46,8 +46,8 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-    <string>Cette application a besoin d'accéder à la caméra pour scanner vos notes de frais.</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Cette application a besoin d'accéder à votre galerie pour importer des photos de notes de frais.</string>
+	<string>Cette application a besoin d'accéder à la caméra pour scanner vos notes de frais.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cette application a besoin d'accéder à votre galerie pour importer des photos de notes de frais.</string>
 </dict>
 </plist>

@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:notes_de_frais/views/history_view.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:notes_de_frais/views/validation_view.dart';
+import 'package:notes_de_frais/views/settings_view.dart';
 
 class CameraView extends StatefulWidget {
   const CameraView({super.key});
@@ -14,8 +16,8 @@ class CameraView extends StatefulWidget {
 
 class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   CameraController? _cameraController;
-  Future<void>? _initializeControllerFuture;
-  bool _isProcessingFile = false;
+  bool _isCameraInitialized = false;
+  bool _isCameraInitializing = false;
 
   @override
   void initState() {
@@ -35,19 +37,31 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    final controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized) {
-      return;
-    }
-
+    // Si l'application n'est plus visible, on libère la caméra.
     if (state == AppLifecycleState.inactive) {
-      controller.dispose();
+      _cameraController?.dispose();
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = false;
+        });
+      }
     } else if (state == AppLifecycleState.resumed) {
-      _initializeCamera();
+      // Si l'application redevient visible et que la caméra n'est pas initialisée, on la relance.
+      if (!_isCameraInitialized) {
+        _initializeCamera();
+      }
     }
   }
 
   Future<void> _initializeCamera() async {
+    // Empêche les initialisations multiples si une est déjà en cours.
+    if (_isCameraInitializing) return;
+
+    setState(() {
+      _isCameraInitializing = true;
+    });
+
+    // Demande la permission si elle n'est pas déjà accordée.
     var status = await Permission.camera.status;
     if (!status.isGranted) {
       status = await Permission.camera.request();
@@ -56,29 +70,31 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     if (status.isGranted) {
       final cameras = await availableCameras();
       if (cameras.isNotEmpty) {
-        final firstCamera = cameras.first;
-
         _cameraController = CameraController(
-          firstCamera,
+          cameras.first,
           ResolutionPreset.high,
           enableAudio: false,
         );
 
-        _initializeControllerFuture = _cameraController!.initialize().then((_) {
-          if (!mounted) return;
-          setState(() {});
-        }).catchError((Object e) {
-          if (e is CameraException) {
-            print('Erreur caméra: ${e.code}\n${e.description}');
+        try {
+          await _cameraController!.initialize();
+          if (mounted) {
+            setState(() {
+              _isCameraInitialized = true;
+            });
           }
-        });
-
-        if (mounted) {
-          setState(() {});
+        } catch (e) {
+          print('Erreur lors de l\'initialisation de la caméra: $e');
         }
       }
     } else {
       print('Permission caméra refusée');
+    }
+
+    if (mounted) {
+      setState(() {
+        _isCameraInitializing = false;
+      });
     }
   }
 
@@ -92,11 +108,9 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   Future<void> _takePicture() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
-      return;
-    }
+    if (!_isCameraInitialized || _cameraController == null) return;
+
     try {
-      await _initializeControllerFuture;
       final image = await _cameraController!.takePicture();
       _navigateToValidationScreen([image.path]);
     } catch (e) {
@@ -105,88 +119,89 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   Future<void> _pickFile() async {
-    setState(() => _isProcessingFile = true);
-
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
       );
 
-      if (result == null || result.files.single.path == null) {
-        setState(() => _isProcessingFile = false);
-        return;
+      if (result != null && result.files.single.path != null) {
+        if (mounted) {
+          await _navigateToValidationScreen([result.files.single.path!]);
+        }
       }
-
-      String filePath = result.files.single.path!;
-
-      // La logique de conversion n'est plus ici, on envoie directement le chemin.
-      await _navigateToValidationScreen([filePath]);
-
     } catch (e) {
       print('Erreur lors de la sélection de fichier: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessingFile = false);
-      }
     }
   }
-
-  // SUPPRESSION DE LA FONCTION _convertPdfToImages QUI EST MAINTENANT DANS LE CONTROLLER
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: _buildFullscreenPreview(),
+      appBar: AppBar(
+        title: const Text('Prendre un justificatif'),
+        backgroundColor: Colors.black.withOpacity(0.5),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HistoryView())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsView())),
+          ),
+        ],
+      ),
+      body: _buildCameraPreview(),
     );
   }
 
-  Widget _buildFullscreenPreview() {
-    final controller = _cameraController;
+  Widget _buildCameraPreview() {
+    if (_isCameraInitialized && _cameraController != null) {
+      final controller = _cameraController!;
+      final mediaSize = MediaQuery.of(context).size;
+      final scale = 1 / (controller.value.aspectRatio * mediaSize.aspectRatio);
 
-    if (controller == null || !controller.value.isInitialized) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final mediaSize = MediaQuery.of(context).size;
-    final scale = 1 / (controller.value.aspectRatio * mediaSize.aspectRatio);
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        ClipRect(
-          clipper: _MediaSizeClipper(mediaSize),
-          child: Transform.scale(
-            scale: scale,
-            alignment: Alignment.center,
-            child: CameraPreview(controller),
-          ),
-        ),
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 40.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _isProcessingFile
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : IconButton(
-                  onPressed: _pickFile,
-                  icon: const Icon(Icons.photo_library, color: Colors.white, size: 36),
-                ),
-                FloatingActionButton.large(
-                  onPressed: _takePicture,
-                  child: const Icon(Icons.camera_alt),
-                ),
-                const SizedBox(width: 36),
-              ],
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipRect(
+            clipper: _MediaSizeClipper(mediaSize),
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.center,
+              child: CameraPreview(controller),
             ),
           ),
-        ),
-      ],
-    );
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              padding: const EdgeInsets.only(bottom: 40.0),
+              color: Colors.black.withOpacity(0.3),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    onPressed: _pickFile,
+                    icon: const Icon(Icons.photo_library, color: Colors.white, size: 36),
+                  ),
+                  FloatingActionButton.large(
+                    onPressed: _takePicture,
+                    child: const Icon(Icons.camera_alt),
+                  ),
+                  const SizedBox(width: 36), // Pour l'équilibre visuel
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    } else {
+      return const Center(child: CircularProgressIndicator());
+    }
   }
 }
 
