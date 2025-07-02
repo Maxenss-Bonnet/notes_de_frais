@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:native_pdf_renderer/native_pdf_renderer.dart';
+import 'package:pdfx/pdfx.dart'; // <- Import modifié
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:notes_de_frais/views/validation_view.dart';
@@ -115,8 +115,9 @@ class _CameraViewState extends State<CameraView> {
       final document = await PdfDocument.openFile(pdfPath);
       final page = await document.getPage(1);
       final pageImage = await page.render(width: page.width, height: page.height);
-      await page.close();
-      await document.close();
+
+      // Avec pdfx, il n'est plus nécessaire d'attendre (await) pour close()
+      page.close();
 
       if (pageImage == null) return null;
 
