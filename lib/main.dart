@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:notes_de_frais/screens/camera_screen.dart';
+import 'package:notes_de_frais/views/camera_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const CameraScreen(),
+      home: const CameraView(),
     );
   }
 }

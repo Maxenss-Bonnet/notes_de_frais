@@ -5,16 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:native_pdf_renderer/native_pdf_renderer.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:notes_de_frais/screens/validation_screen.dart';
+import 'package:notes_de_frais/views/validation_view.dart';
 
-class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+class CameraView extends StatefulWidget {
+  const CameraView({super.key});
 
   @override
-  State<CameraScreen> createState() => _CameraScreenState();
+  State<CameraView> createState() => _CameraViewState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraViewState extends State<CameraView> {
   CameraController? _cameraController;
   Future<void>? _initializeControllerFuture;
   bool _isCameraInitialized = false;
@@ -59,7 +59,7 @@ class _CameraScreenState extends State<CameraScreen> {
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ValidationScreen(imagePath: imagePath),
+        builder: (context) => ValidationView(imagePath: imagePath),
       ),
     );
   }
@@ -78,9 +78,7 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _pickFile() async {
-    setState(() {
-      _isProcessingFile = true;
-    });
+    setState(() => _isProcessingFile = true);
 
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -107,9 +105,7 @@ class _CameraScreenState extends State<CameraScreen> {
       print('Erreur lors de la sélection de fichier: $e');
     } finally {
       if (mounted) {
-        setState(() {
-          _isProcessingFile = false;
-        });
+        setState(() => _isProcessingFile = false);
       }
     }
   }
@@ -117,11 +113,8 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<String?> _convertPdfToImage(String pdfPath) async {
     try {
       final document = await PdfDocument.openFile(pdfPath);
-      // Ligne corrigée ici : .get(page: 1) devient .getPage(1)
       final page = await document.getPage(1);
-
       final pageImage = await page.render(width: page.width, height: page.height);
-
       await page.close();
       await document.close();
 
@@ -137,7 +130,6 @@ class _CameraScreenState extends State<CameraScreen> {
       return null;
     }
   }
-
 
   @override
   void dispose() {
@@ -203,11 +195,7 @@ class _MediaSizeClipper extends CustomClipper<Rect> {
   final Size mediaSize;
   const _MediaSizeClipper(this.mediaSize);
   @override
-  Rect getClip(Size size) {
-    return Rect.fromLTWH(0, 0, mediaSize.width, mediaSize.height);
-  }
+  Rect getClip(Size size) => Rect.fromLTWH(0, 0, mediaSize.width, mediaSize.height);
   @override
-  bool shouldReclip(CustomClipper<Rect> oldClipper) {
-    return true;
-  }
+  bool shouldReclip(CustomClipper<Rect> oldClipper) => true;
 }
