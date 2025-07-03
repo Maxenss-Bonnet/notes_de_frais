@@ -90,36 +90,39 @@ class ExpenseController {
     return imagePaths;
   }
 
-  Future<void> saveExpense(ExpenseModel expense) async {
+  Future<void> saveExpenseLocally(ExpenseModel expense) async {
+    await _storageService.saveExpense(expense);
+    print('Note de frais sauvegardée dans l\'historique local.');
+  }
+
+  Future<void> performBackgroundTasks(ExpenseModel expense) async {
     final sender = dotenv.env['SENDER_EMAIL'];
     final password = dotenv.env['SENDER_APP_PASSWORD'];
     final recipient = await _settingsService.getRecipientEmail();
     final spreadsheetId = dotenv.env['GOOGLE_SHEET_ID'];
 
     if (sender == null || password == null) {
-      throw 'Les variables d\'environnement SENDER_EMAIL ou SENDER_APP_PASSWORD ne sont pas définies.';
+      print('Les variables d\'environnement SENDER_EMAIL ou SENDER_APP_PASSWORD ne sont pas définies.');
+      return;
     }
     if (spreadsheetId == null) {
-      throw 'La variable d\'environnement GOOGLE_SHEET_ID n\'est pas définie.';
+      print('La variable d\'environnement GOOGLE_SHEET_ID n\'est pas définie.');
+      return;
     }
 
     try {
-      await _emailService.sendExpenseEmail(
-        expense: expense,
-        recipient: recipient,
-        sender: sender,
-        password: password,
-      );
-      print('E-mail envoyé avec succès à $recipient.');
-
-      await _storageService.saveExpense(expense);
-      print('Note de frais sauvegardée dans l\'historique local.');
-
-      await _googleSheetsService.appendExpense(expense, spreadsheetId);
-
+      await Future.wait([
+        _emailService.sendExpenseEmail(
+          expense: expense,
+          recipient: recipient,
+          sender: sender,
+          password: password,
+        ),
+        _googleSheetsService.appendExpense(expense, spreadsheetId),
+      ]);
+      print('Tâches de fond (email et Google Sheets) terminées avec succès.');
     } catch (e) {
-      print('Erreur lors du processus de sauvegarde et d\'envoi : $e');
-      throw 'Un problème est survenu. Vérifiez les configurations et votre connexion internet.';
+      print('Erreur lors de l\'exécution des tâches de fond : $e');
     }
   }
 }

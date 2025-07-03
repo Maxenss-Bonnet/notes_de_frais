@@ -35,6 +35,8 @@ class _ValidationViewState extends State<ValidationView> {
   void _showRewardOverlay({
     required double beforeVat,
     required double afterVat,
+    required double beforeWeeklyVat,
+    required double afterWeeklyVat,
     required int beforeCount,
     required int afterCount
   }) {
@@ -57,21 +59,36 @@ class _ValidationViewState extends State<ValidationView> {
                     const SizedBox(height: 40),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        AnimatedStatWidget(
-                          title: 'Notes cette semaine',
-                          beginValue: beforeCount.toDouble(),
-                          endValue: afterCount.toDouble(),
-                          icon: Icons.note_add_outlined,
-                          color: Colors.orange,
+                        Flexible(
+                          child: AnimatedStatWidget(
+                            title: 'Notes (semaine)',
+                            beginValue: beforeCount.toDouble(),
+                            endValue: afterCount.toDouble(),
+                            icon: Icons.note_add_outlined,
+                            color: Colors.orange,
+                          ),
                         ),
-                        AnimatedStatWidget(
-                          title: 'Total TVA économisée',
-                          beginValue: beforeVat,
-                          endValue: afterVat,
-                          icon: Icons.shield_outlined,
-                          color: Colors.green,
-                          isCurrency: true,
+                        Flexible(
+                          child: AnimatedStatWidget(
+                            title: 'TVA (semaine)',
+                            beginValue: beforeWeeklyVat,
+                            endValue: afterWeeklyVat,
+                            icon: Icons.calendar_today,
+                            color: Colors.purple,
+                            isCurrency: true,
+                          ),
+                        ),
+                        Flexible(
+                          child: AnimatedStatWidget(
+                            title: 'TVA (Total)',
+                            beginValue: beforeVat,
+                            endValue: afterVat,
+                            icon: Icons.shield_outlined,
+                            color: Colors.green,
+                            isCurrency: true,
+                          ),
                         ),
                       ],
                     ),
@@ -104,26 +121,29 @@ class _ValidationViewState extends State<ValidationView> {
 
     setState(() => _isSending = true);
 
-    // 1. Capturer les statistiques AVANT la sauvegarde
-    final beforeVat = _statsService.getTotalVatSaved();
-    final beforeCount = _statsService.getExpensesThisWeekCount();
-
     try {
-      await _controller.saveExpense(expense);
+      final beforeVat = _statsService.getTotalVatSaved();
+      final beforeWeeklyVat = _statsService.getVatSavedThisWeek();
+      final beforeCount = _statsService.getExpensesThisWeekCount();
 
-      // 2. Capturer les statistiques APRÈS la sauvegarde
+      await _controller.saveExpenseLocally(expense);
+      _controller.performBackgroundTasks(expense);
+
       final afterVat = _statsService.getTotalVatSaved();
+      final afterWeeklyVat = _statsService.getVatSavedThisWeek();
       final afterCount = _statsService.getExpensesThisWeekCount();
 
-      // 3. Afficher l'overlay de récompense
+
       _showRewardOverlay(
         beforeVat: beforeVat,
         afterVat: afterVat,
+        beforeWeeklyVat: beforeWeeklyVat,
+        afterWeeklyVat: afterWeeklyVat,
         beforeCount: beforeCount,
         afterCount: afterCount,
       );
 
-      // 4. Attendre la fin de l'animation, puis fermer et naviguer
+
       await Future.delayed(const Duration(seconds: 4));
       _hideRewardOverlay();
 
@@ -157,7 +177,19 @@ class _ValidationViewState extends State<ValidationView> {
         future: _expenseFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Analyse en cours...',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+            );
           }
           if (snapshot.hasError) {
             return Center(child: Text('Erreur: ${snapshot.error}'));
@@ -222,7 +254,16 @@ class _ValidationViewState extends State<ValidationView> {
                 if (_isSending)
                   Container(
                     color: Colors.black.withOpacity(0.3),
-                    child: const Center(child: CircularProgressIndicator()),
+                    child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text("Envoi en cours...", style: TextStyle(color: Colors.white, fontSize: 16)),
+                          ],
+                        )
+                    ),
                   ),
               ],
             ),
