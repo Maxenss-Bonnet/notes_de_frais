@@ -3,6 +3,7 @@ import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:notes_de_frais/views/history_view.dart';
+import 'package:notes_de_frais/views/statistics_view.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:notes_de_frais/views/validation_view.dart';
 import 'package:notes_de_frais/views/settings_view.dart';
@@ -37,7 +38,6 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    // Si l'application n'est plus visible, on libère la caméra.
     if (state == AppLifecycleState.inactive) {
       _cameraController?.dispose();
       if (mounted) {
@@ -46,7 +46,6 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         });
       }
     } else if (state == AppLifecycleState.resumed) {
-      // Si l'application redevient visible et que la caméra n'est pas initialisée, on la relance.
       if (!_isCameraInitialized) {
         _initializeCamera();
       }
@@ -54,14 +53,12 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   Future<void> _initializeCamera() async {
-    // Empêche les initialisations multiples si une est déjà en cours.
     if (_isCameraInitializing) return;
 
     setState(() {
       _isCameraInitializing = true;
     });
 
-    // Demande la permission si elle n'est pas déjà accordée.
     var status = await Permission.camera.status;
     if (!status.isGranted) {
       status = await Permission.camera.request();
@@ -146,11 +143,18 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.bar_chart),
+            tooltip: 'Statistiques',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const StatisticsView())),
+          ),
+          IconButton(
             icon: const Icon(Icons.history),
+            tooltip: 'Historique',
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HistoryView())),
           ),
           IconButton(
             icon: const Icon(Icons.settings),
+            tooltip: 'Paramètres',
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsView())),
           ),
         ],
@@ -192,7 +196,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
                     onPressed: _takePicture,
                     child: const Icon(Icons.camera_alt),
                   ),
-                  const SizedBox(width: 36), // Pour l'équilibre visuel
+                  const SizedBox(width: 36),
                 ],
               ),
             ),

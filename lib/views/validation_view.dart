@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:notes_de_frais/controllers/expense_controller.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
+import 'package:notes_de_frais/services/statistics_service.dart';
 import 'package:notes_de_frais/utils/constants.dart';
+import 'package:notes_de_frais/widgets/animated_stat_widget.dart';
 
 class ValidationView extends StatefulWidget {
   final List<String> imagePaths;
@@ -16,10 +19,12 @@ class ValidationView extends StatefulWidget {
 
 class _ValidationViewState extends State<ValidationView> {
   final ExpenseController _controller = ExpenseController();
+  final StatisticsService _statsService = StatisticsService();
   Future<ExpenseModel>? _expenseFuture;
   String? _selectedCompany;
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
   bool _isSending = false;
+  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
@@ -27,7 +32,68 @@ class _ValidationViewState extends State<ValidationView> {
     _expenseFuture = _controller.processImages(widget.imagePaths);
   }
 
+  void _showRewardOverlay({
+    required double beforeVat,
+    required double afterVat,
+    required int beforeCount,
+    required int afterCount
+  }) {
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return Material(
+          color: Colors.transparent,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: Container(
+              color: Colors.black.withOpacity(0.6),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Note de frais enregistrée !',
+                      style: TextStyle(fontSize: 28, color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 40),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        AnimatedStatWidget(
+                          title: 'Notes cette semaine',
+                          beginValue: beforeCount.toDouble(),
+                          endValue: afterCount.toDouble(),
+                          icon: Icons.note_add_outlined,
+                          color: Colors.orange,
+                        ),
+                        AnimatedStatWidget(
+                          title: 'Total TVA économisée',
+                          beginValue: beforeVat,
+                          endValue: afterVat,
+                          icon: Icons.shield_outlined,
+                          color: Colors.green,
+                          isCurrency: true,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _hideRewardOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
   Future<void> _onValidate(ExpenseModel expense) async {
+    if (_isSending) return;
     if (_selectedCompany == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez sélectionner une entreprise.')),
@@ -38,17 +104,33 @@ class _ValidationViewState extends State<ValidationView> {
 
     setState(() => _isSending = true);
 
+    // 1. Capturer les statistiques AVANT la sauvegarde
+    final beforeVat = _statsService.getTotalVatSaved();
+    final beforeCount = _statsService.getExpensesThisWeekCount();
+
     try {
       await _controller.saveExpense(expense);
+
+      // 2. Capturer les statistiques APRÈS la sauvegarde
+      final afterVat = _statsService.getTotalVatSaved();
+      final afterCount = _statsService.getExpensesThisWeekCount();
+
+      // 3. Afficher l'overlay de récompense
+      _showRewardOverlay(
+        beforeVat: beforeVat,
+        afterVat: afterVat,
+        beforeCount: beforeCount,
+        afterCount: afterCount,
+      );
+
+      // 4. Attendre la fin de l'animation, puis fermer et naviguer
+      await Future.delayed(const Duration(seconds: 4));
+      _hideRewardOverlay();
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Note de frais envoyée avec succès !'),
-            backgroundColor: Colors.green,
-          ),
-        );
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
+
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -85,53 +167,62 @@ class _ValidationViewState extends State<ValidationView> {
           }
 
           final expense = snapshot.data!;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          return IgnorePointer(
+            ignoring: _isSending,
+            child: Stack(
               children: [
-                SizedBox(
-                  height: 200,
-                  child: PageView.builder(
-                    itemCount: expense.processedImagePaths.length,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Image.file(File(expense.processedImagePaths[index])),
-                      );
-                    },
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        height: 200,
+                        child: PageView.builder(
+                          itemCount: expense.processedImagePaths.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: Image.file(File(expense.processedImagePaths[index])),
+                            );
+                          },
+                        ),
+                      ),
+                      if (expense.processedImagePaths.length > 1)
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'Faites glisser pour voir les autres pages',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 24),
+                      _buildInfoRow('Date', expense.date != null ? _dateFormat.format(expense.date!) : 'N/A'),
+                      _buildInfoRow('Montant', '${expense.amount?.toStringAsFixed(2) ?? 'N/A'} €'),
+                      _buildInfoRow('TVA', '${expense.vat?.toStringAsFixed(2) ?? 'N/A'} €'),
+                      _buildInfoRow('Entreprise', expense.company ?? 'N/A'),
+                      const SizedBox(height: 24),
+                      _buildCompanyDropdown(),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () => _onValidate(expense),
+                        icon: const Icon(Icons.check_circle),
+                        label: const Text('Valider et envoyer'),
+                      ),
+                    ],
                   ),
                 ),
-                if (expense.processedImagePaths.length > 1)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        'Faites glisser pour voir les autres pages',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 24),
-                _buildInfoRow('Date', expense.date != null ? _dateFormat.format(expense.date!) : 'N/A'),
-                _buildInfoRow('Montant', '${expense.amount?.toStringAsFixed(2) ?? 'N/A'} €'),
-                _buildInfoRow('TVA', '${expense.vat?.toStringAsFixed(2) ?? 'N/A'} €'),
-                _buildInfoRow('Entreprise', expense.company ?? 'N/A'),
-                const SizedBox(height: 24),
-                _buildCompanyDropdown(),
-                const SizedBox(height: 24),
                 if (_isSending)
-                  const Center(child: CircularProgressIndicator())
-                else
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: () => _onValidate(expense),
-                    icon: const Icon(Icons.check_circle),
-                    label: const Text('Valider et envoyer'),
+                  Container(
+                    color: Colors.black.withOpacity(0.3),
+                    child: const Center(child: CircularProgressIndicator()),
                   ),
               ],
             ),
