@@ -1,7 +1,8 @@
+// lib/services/statistics_service.dart
+
 import 'package:collection/collection.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
 import 'package:notes_de_frais/services/storage_service.dart';
-import 'package:notes_de_frais/utils/string_normalizer.dart';
 
 class StatisticsService {
   final StorageService _storageService = StorageService();
@@ -40,27 +41,26 @@ class StatisticsService {
     return expenses.map((e) => e.amount ?? 0).sum;
   }
 
-  Map<String, double> getExpensesByCompany() {
+  Map<String, double> getExpensesByCategory() {
     final expenses = _getValidExpenses();
     final map = <String, double>{};
 
     for (var expense in expenses) {
-      final company = expense.associatedTo ?? 'Non défini';
+      final category = expense.category ?? 'Autre';
       final amount = expense.amount ?? 0;
-      map[company] = (map[company] ?? 0) + amount;
+      map[category] = (map[category] ?? 0) + amount;
     }
     return map;
   }
 
-  Map<String, double> getExpensesByMerchant({int count = 5}) {
-    final expenses = _getValidExpenses();
+  Map<String, double> getExpensesByMerchantForCategory(String category, {int count = 5}) {
+    final expenses = _getValidExpenses().where((e) => e.category == category);
     final map = <String, double>{};
 
     for (var expense in expenses) {
-      final rawMerchantName = expense.company ?? 'Inconnu';
-      final normalizedMerchant = StringNormalizer.normalizeMerchantName(rawMerchantName);
+      final merchant = expense.normalizedMerchantName ?? 'Inconnu';
       final amount = expense.amount ?? 0;
-      map[normalizedMerchant] = (map[normalizedMerchant] ?? 0) + amount;
+      map[merchant] = (map[merchant] ?? 0) + amount;
     }
 
     var sortedEntries = map.entries.toList()

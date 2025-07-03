@@ -1,3 +1,5 @@
+// lib/models/expense_model.dart
+
 import 'package:hive/hive.dart';
 
 part 'expense_model.g.dart';
@@ -28,6 +30,12 @@ class ExpenseModel extends HiveObject {
   @HiveField(7)
   bool isInTrash;
 
+  @HiveField(8)
+  String? category;
+
+  @HiveField(9)
+  String? normalizedMerchantName;
+
   ExpenseModel({
     required this.imagePath,
     this.processedImagePaths = const [],
@@ -37,5 +45,7 @@ class ExpenseModel extends HiveObject {
     this.company,
     this.associatedTo,
     this.isInTrash = false,
+    this.category,
+    this.normalizedMerchantName,
   });
 }

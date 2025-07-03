@@ -1,3 +1,5 @@
+// lib/services/ai_service.dart
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -9,7 +11,7 @@ class AiService {
 
   AiService()
       : _model = GenerativeModel(
-    model: 'gemini-2.5-flash-lite-preview-06-17',
+    model: 'gemini-1.5-flash',
     apiKey: dotenv.env['GEMINI_API_KEY']!,
   );
 
@@ -43,6 +45,8 @@ class AiService {
           'amount': (decodedJson['amount'] as num?)?.toDouble(),
           'vat': (decodedJson['vat'] as num?)?.toDouble(),
           'company': decodedJson['company'],
+          'category': decodedJson['category'],
+          'normalizedMerchantName': decodedJson['normalizedMerchantName'],
         };
       }
     } catch (e) {
@@ -59,21 +63,29 @@ class AiService {
       **Instructions étape par étape :**
 
       1.  **Analyse Globale :**
-          * Examine l'ensemble des images. S'il y en a plusieurs, elles représentent les pages séquentielles d'un seul et même document.
-          * Les informations importantes, comme le total à payer, peuvent se trouver sur la dernière page/image.
+          * Examine l'ensemble des images. S'il y en a plusieurs, elles représentent les pages d'un seul document.
 
       2.  **Extraction des Données Spécifiques :**
-          * **`company`**: Trouve le nom du magasin ou du fournisseur. Il est généralement en en-tête, en gros caractères (ex: "IKEA", "Amazon", "QUINCAILLERIE PORTALET").
-          * **`date`**: Trouve la date principale de la facture ou du ticket. Formate-la impérativement en **AAAA-MM-JJ**.
-          * **`amount`**: Identifie le montant **TOTAL** payé par le client (TTC). Cherche les mots-clés les plus pertinents comme "Total TTC", "NET A PAYER", "TOTAL", "Total articles". Ignore les totaux partiels ou le total Hors Taxes (HT). Pour le ticket IKEA, le total se trouve sur la deuxième page.
-          * **`vat`**: Identifie le montant total de la TVA. Cherche des lignes spécifiques comme "Total TVA", "Dont TVA". Pour la facture Amazon, il y a une section "Récapitulatif de la TVA" sur la deuxième page. Si plusieurs montants de TVA sont listés (par taux), **fais la somme** pour ne retourner qu'une seule valeur numérique.
+          * **`company`**: Le nom brut du magasin ou du fournisseur (ex: "AMAZON.FR", "McDo Opéra").
+          * **`date`**: La date principale de la facture/ticket. Formate-la impérativement en **AAAA-MM-JJ**.
+          * **`amount`**: Le montant **TOTAL TTC** payé.
+          * **`vat`**: Le montant total de la TVA. Fais la somme si plusieurs taux sont présents.
+          * **`normalizedMerchantName`**: Normalise le nom du marchand. Ex: "AMAZON.FR" devient "Amazon", "McDo Opéra" devient "McDonald's".
+          * **`category`**: Attribue une catégorie parmi la liste suivante :
+            - Restauration
+            - Transport
+            - Hébergement
+            - Fournitures & Services
+            - Péages & Parking
+            - Shopping & Loisirs
+            - Autre
 
       3.  **Formatage de la Sortie :**
           * Ta réponse doit être **UNIQUEMENT** un bloc de code JSON valide.
-          * N'ajoute **AUCUN** texte, explication, ou markdown `json` avant ou après le JSON.
-          * Si une information est introuvable, sa valeur dans le JSON doit être `null`.
+          * N'ajoute **AUCUN** texte ou markdown avant ou après le JSON.
+          * Si une information est introuvable, sa valeur doit être `null`.
 
-      Analyse maintenant les images jointes et fournis le JSON.
+      Analyse maintenant et fournis le JSON.
       '''
     );
   }

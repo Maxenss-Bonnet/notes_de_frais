@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:notes_de_frais/services/statistics_service.dart';
-import 'package:collection/collection.dart';
+import 'package:notes_de_frais/views/category_detail_view.dart';
 
 class StatisticsView extends StatefulWidget {
   const StatisticsView({super.key});
@@ -21,25 +21,26 @@ class _StatisticsViewState extends State<StatisticsView> {
       appBar: AppBar(
         title: const Text('Statistiques'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildKpiSection(),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Top 5 des dépenses par marchand'),
-            const SizedBox(height: 16),
-            _buildMerchantChart(),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Dépenses par société (interne)'),
-            const SizedBox(height: 16),
-            _buildPieChart(),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Activité de la semaine'),
-            const SizedBox(height: 16),
-            _buildBarChart(),
-          ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          setState(() {});
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildKpiSection(),
+              const SizedBox(height: 24),
+              _buildSectionTitle('Dépenses par catégorie'),
+              const SizedBox(height: 16),
+              _buildCategoryChart(),
+              const SizedBox(height: 24),
+              _buildSectionTitle('Activité de la semaine'),
+              const SizedBox(height: 16),
+              _buildBarChart(),
+            ],
+          ),
         ),
       ),
     );
@@ -99,52 +100,9 @@ class _StatisticsViewState extends State<StatisticsView> {
     );
   }
 
-  Widget _buildMerchantChart() {
-    final data = _statsService.getExpensesByMerchant();
-    if (data.isEmpty) return const SizedBox(height: 100, child: Center(child: Text('Aucune donnée de marchand')));
-
-    final maxValue = data.values.isEmpty ? 0 : data.values.reduce((a, b) => a > b ? a : b);
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: data.entries.map((entry) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text(_currencyFormat.format(entry.value), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.cyan)),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  LinearProgressIndicator(
-                    value: maxValue > 0 ? entry.value / maxValue : 0,
-                    backgroundColor: Colors.grey.shade300,
-                    color: Colors.cyan,
-                    minHeight: 12,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPieChart() {
-    final data = _statsService.getExpensesByCompany();
-    if (data.isEmpty) return const SizedBox(height: 150, child: Center(child: Text('Aucune donnée')));
+  Widget _buildCategoryChart() {
+    final data = _statsService.getExpensesByCategory();
+    if (data.isEmpty) return const SizedBox(height: 150, child: Center(child: Text('Aucune dépense à afficher')));
 
     return SizedBox(
       height: 200,
@@ -153,16 +111,32 @@ class _StatisticsViewState extends State<StatisticsView> {
           sections: data.entries.map((entry) {
             final index = data.keys.toList().indexOf(entry.key);
             return PieChartSectionData(
-              color: Colors.primaries[index % Colors.primaries.length].withOpacity(0.7),
+              color: Colors.primaries[index % Colors.primaries.length].withOpacity(0.8),
               value: entry.value,
               title: '${entry.key}\n${_currencyFormat.format(entry.value)}',
               radius: 80,
-              titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+              titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(blurRadius: 2)]),
               titlePositionPercentageOffset: 0.55,
             );
           }).toList(),
           sectionsSpace: 2,
           centerSpaceRadius: 40,
+          pieTouchData: PieTouchData(
+            touchCallback: (FlTouchEvent event, pieTouchResponse) {
+              if (event is FlTapUpEvent && pieTouchResponse?.touchedSection != null) {
+                final touchedSection = pieTouchResponse!.touchedSection;
+                if (touchedSection != null) {
+                  final touchedIndex = touchedSection.touchedSectionIndex;
+                  final category = data.keys.elementAt(touchedIndex);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => CategoryDetailView(category: category),
+                    ),
+                  );
+                }
+              }
+            },
+          ),
         ),
       ),
     );

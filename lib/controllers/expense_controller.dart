@@ -16,111 +16,118 @@ class ExpenseController {
   final StorageService _storageService = StorageService();
   final GoogleSheetsService _googleSheetsService = GoogleSheetsService();
 
-  Future<ExpenseModel> processImages(List<String> originalFilePaths) async {
-    if (originalFilePaths.isEmpty) {
-      return ExpenseModel(imagePath: '');
-    }
+  Future<List<ExpenseModel>> processImageBatch(List<String> originalFilePaths) async {
+    List<ExpenseModel> processedExpenses = [];
 
-    final List<String> imagePathsToAnalyze = [];
-    final String referencePath = originalFilePaths.first;
-
-    for (String path in originalFilePaths) {
+    for (String path in List.from(originalFilePaths)) {
+      final List<String> imagesToAnalyze = [];
       if (path.toLowerCase().endsWith('.pdf')) {
-        final convertedImagePaths = await _convertPdfToImages(path);
-        imagePathsToAnalyze.addAll(convertedImagePaths);
+        final pdfImages = await _convertPdfToImages(path);
+        imagesToAnalyze.addAll(pdfImages);
       } else {
-        imagePathsToAnalyze.add(path);
+        imagesToAnalyze.add(path);
       }
+
+      if (imagesToAnalyze.isEmpty) {
+        processedExpenses.add(ExpenseModel(imagePath: path));
+        continue;
+      }
+
+      final extractedData = await _aiService.extractExpenseDataFromFiles(imagesToAnalyze);
+
+      processedExpenses.add(
+          ExpenseModel(
+            imagePath: path,
+            processedImagePaths: imagesToAnalyze,
+            date: extractedData['date'],
+            amount: extractedData['amount'],
+            vat: extractedData['vat'],
+            company: extractedData['company'],
+            category: extractedData['category'],
+            normalizedMerchantName: extractedData['normalizedMerchantName'],
+          )
+      );
+    }
+    return processedExpenses;
+  }
+
+  Future<void> saveExpenseBatchLocally(List<ExpenseModel> expenses) async {
+    for (var expense in expenses) {
+      await _storageService.saveExpense(expense);
+    }
+    print('${expenses.length} notes de frais sauvegardées localement.');
+  }
+
+  void performBackgroundTasksForBatch(List<ExpenseModel> expenses) async {
+    final sender = dotenv.env['SENDER_EMAIL'];
+    final password = dotenv.env['SENDER_APP_PASSWORD'];
+    final recipient = await _settingsService.getRecipientEmail();
+    final spreadsheetId = dotenv.env['GOOGLE_SHEET_ID'];
+
+    if (sender == null || password == null || spreadsheetId == null) {
+      print('Variables d\'environnement manquantes pour les tâches de fond.');
+      return;
     }
 
-    if (imagePathsToAnalyze.isEmpty) {
-      print("Aucune image n'a pu être extraite des fichiers fournis.");
-      return ExpenseModel(imagePath: referencePath, processedImagePaths: originalFilePaths);
+    try {
+      await _emailService.sendExpenseBatchEmail(
+          expenses: expenses, recipient: recipient, sender: sender, password: password);
+
+      for (var expense in expenses) {
+        await _googleSheetsService.appendExpense(expense, spreadsheetId);
+      }
+      print('Tâches de fond pour le lot terminées.');
+    } catch (e) {
+      print('Erreur lors de l\'exécution des tâches de fond pour le lot : $e');
     }
-
-    final extractedData = await _aiService.extractExpenseDataFromFiles(imagePathsToAnalyze);
-
-    return ExpenseModel(
-      imagePath: referencePath,
-      processedImagePaths: imagePathsToAnalyze,
-      date: extractedData['date'],
-      amount: extractedData['amount'],
-      vat: extractedData['vat'],
-      company: extractedData['company'],
-    );
   }
 
   Future<List<String>> _convertPdfToImages(String pdfPath) async {
     final List<String> imagePaths = [];
     PdfDocument? document;
     try {
-      print('Début de la conversion pour le PDF: $pdfPath');
       document = await PdfDocument.openFile(pdfPath);
       final tempDir = await getTemporaryDirectory();
-      print('PDF ouvert avec succès. Nombre de pages: ${document.pagesCount}');
-
       for (int i = 1; i <= document.pagesCount; i++) {
         final page = await document.getPage(i);
-
         final pageImage = await page.render(
-          width: page.width * 3,
-          height: page.height * 3,
-          format: PdfPageImageFormat.png,
-          backgroundColor: '#FFFFFF',
+          width: page.width * 3, height: page.height * 3, format: PdfPageImageFormat.png, backgroundColor: '#FFFFFF',
         );
-
         await page.close();
-
         if (pageImage != null) {
           final imageFile = File('${tempDir.path}/pdf_page_${i}_${DateTime.now().millisecondsSinceEpoch}.png');
           await imageFile.writeAsBytes(pageImage.bytes);
           imagePaths.add(imageFile.path);
-          print('Page $i convertie et sauvegardée dans: ${imageFile.path}');
-        } else {
-          print('ERREUR: Le rendu de la page $i a échoué (résultat nul).');
         }
       }
     } catch (e) {
-      print("ERREUR CATCH: Une exception est survenue lors de la conversion du PDF: $e");
+      print("Erreur lors de la conversion du PDF: $e");
     } finally {
       await document?.close();
     }
-
-    print('Conversion terminée. ${imagePaths.length} image(s) créée(s).');
     return imagePaths;
   }
 
   Future<void> saveExpenseLocally(ExpenseModel expense) async {
     await _storageService.saveExpense(expense);
-    print('Note de frais sauvegardée dans l\'historique local.');
   }
 
-  Future<void> performBackgroundTasks(ExpenseModel expense) async {
+  void performBackgroundTasks(ExpenseModel expense) async {
     final sender = dotenv.env['SENDER_EMAIL'];
     final password = dotenv.env['SENDER_APP_PASSWORD'];
     final recipient = await _settingsService.getRecipientEmail();
     final spreadsheetId = dotenv.env['GOOGLE_SHEET_ID'];
 
-    if (sender == null || password == null) {
-      print('Les variables d\'environnement SENDER_EMAIL ou SENDER_APP_PASSWORD ne sont pas définies.');
-      return;
-    }
-    if (spreadsheetId == null) {
-      print('La variable d\'environnement GOOGLE_SHEET_ID n\'est pas définie.');
+    if (sender == null || password == null || spreadsheetId == null) {
+      print('Variables d\'environnement manquantes pour les tâches de fond.');
       return;
     }
 
     try {
-      await Future.wait([
-        _emailService.sendExpenseEmail(
-          expense: expense,
-          recipient: recipient,
-          sender: sender,
-          password: password,
-        ),
-        _googleSheetsService.appendExpense(expense, spreadsheetId),
-      ]);
-      print('Tâches de fond (email et Google Sheets) terminées avec succès.');
+      await _emailService.sendExpenseEmail(
+          expense: expense, recipient: recipient, sender: sender, password: password);
+      await _googleSheetsService.appendExpense(expense, spreadsheetId);
+      print('Tâches de fond pour une note terminées.');
     } catch (e) {
       print('Erreur lors de l\'exécution des tâches de fond : $e');
     }
