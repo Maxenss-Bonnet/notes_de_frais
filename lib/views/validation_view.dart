@@ -199,6 +199,47 @@ class _ValidationViewState extends State<ValidationView> {
           }
 
           final expense = snapshot.data!;
+          final bool isDataComplete = expense.date != null && expense.amount != null && expense.company != null;
+
+          if (!isDataComplete) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 64),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Analyse incomplète',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "L'IA n'a pas pu extraire toutes les informations. La photo est peut-être floue, sombre ou mal cadrée.",
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      icon: const Icon(Icons.camera_alt_outlined),
+                      label: const Text('Reprendre la photo'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           return IgnorePointer(
             ignoring: _isSending,
             child: Stack(
