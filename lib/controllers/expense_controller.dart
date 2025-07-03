@@ -103,9 +103,7 @@ class ExpenseController {
       throw 'La variable d\'environnement GOOGLE_SHEET_ID n\'est pas définie.';
     }
 
-    // Sauvegarde et envoi
     try {
-      // 1. Envoi par e-mail
       await _emailService.sendExpenseEmail(
         expense: expense,
         recipient: recipient,
@@ -114,11 +112,9 @@ class ExpenseController {
       );
       print('E-mail envoyé avec succès à $recipient.');
 
-      // 2. Sauvegarde dans l'historique local
       await _storageService.saveExpense(expense);
       print('Note de frais sauvegardée dans l\'historique local.');
 
-      // 3. Ajout à Google Sheets
       await _googleSheetsService.appendExpense(expense, spreadsheetId);
 
     } catch (e) {
