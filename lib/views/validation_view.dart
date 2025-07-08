@@ -57,8 +57,8 @@ class _ValidationViewState extends State<ValidationView> {
     final beforeWeeklyVat = _statsService.getVatSavedThisWeek();
     final beforeCount = _statsService.getExpensesThisWeekCount();
 
-    await _controller.saveExpenseLocally(_editableExpense);
-    _controller.performBackgroundTasks(_editableExpense);
+    final int expenseKey = await _controller.saveExpenseLocally(_editableExpense);
+    _controller.performBackgroundTasks(expenseKey);
 
     final afterVat = _statsService.getTotalVatSaved();
     final afterWeeklyVat = _statsService.getVatSavedThisWeek();

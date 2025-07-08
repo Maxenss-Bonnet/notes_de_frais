@@ -41,8 +41,8 @@ class _BatchResultViewState extends State<BatchResultView> {
     final beforeWeeklyVat = _statsService.getVatSavedThisWeek();
     final beforeCount = _statsService.getExpensesThisWeekCount();
 
-    await _controller.saveExpenseBatchLocally(validExpenses);
-    _controller.performBackgroundTasksForBatch(validExpenses);
+    final List<int> expenseKeys = await _controller.saveExpenseBatchLocally(validExpenses);
+    _controller.performBackgroundTasksForBatch(expenseKeys);
 
     final afterVat = _statsService.getTotalVatSaved();
     final afterWeeklyVat = _statsService.getVatSavedThisWeek();

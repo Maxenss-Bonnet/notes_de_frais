@@ -4,8 +4,8 @@ import 'package:notes_de_frais/models/expense_model.dart';
 class StorageService {
   final Box<ExpenseModel> _expenseBox = Hive.box<ExpenseModel>('expenses');
 
-  Future<void> saveExpense(ExpenseModel expense) async {
-    await _expenseBox.add(expense);
+  Future<int> saveExpense(ExpenseModel expense) async {
+    return await _expenseBox.add(expense);
   }
 
   Future<void> moveToTrash(int key) async {

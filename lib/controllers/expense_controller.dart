@@ -1,20 +1,17 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
 import 'package:notes_de_frais/services/ai_service.dart';
-import 'package:notes_de_frais/services/email_service.dart';
-import 'package:notes_de_frais/services/google_sheets_service.dart';
-import 'package:notes_de_frais/services/settings_service.dart';
+import 'package:notes_de_frais/services/background_service.dart';
 import 'package:notes_de_frais/services/storage_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:workmanager/workmanager.dart';
 
 class ExpenseController {
   final AiService _aiService = AiService();
-  final EmailService _emailService = EmailService();
-  final SettingsService _settingsService = SettingsService();
   final StorageService _storageService = StorageService();
-  final GoogleSheetsService _googleSheetsService = GoogleSheetsService();
 
   Future<List<ExpenseModel>> processImageBatch(List<String> originalFilePaths) async {
     List<ExpenseModel> processedExpenses = [];
@@ -51,35 +48,37 @@ class ExpenseController {
     return processedExpenses;
   }
 
-  Future<void> saveExpenseBatchLocally(List<ExpenseModel> expenses) async {
-    for (var expense in expenses) {
-      await _storageService.saveExpense(expense);
-    }
-    print('${expenses.length} notes de frais sauvegardées localement.');
+  Future<int> saveExpenseLocally(ExpenseModel expense) async {
+    return await _storageService.saveExpense(expense);
   }
 
-  void performBackgroundTasksForBatch(List<ExpenseModel> expenses) async {
-    final sender = dotenv.env['SENDER_EMAIL'];
-    final password = dotenv.env['SENDER_APP_PASSWORD'];
-    final recipient = await _settingsService.getRecipientEmail();
-    final spreadsheetId = dotenv.env['GOOGLE_SHEET_ID'];
-
-    if (sender == null || password == null || spreadsheetId == null) {
-      print('Variables d\'environnement manquantes pour les tâches de fond.');
-      return;
+  Future<List<int>> saveExpenseBatchLocally(List<ExpenseModel> expenses) async {
+    List<int> keys = [];
+    for (var expense in expenses) {
+      keys.add(await _storageService.saveExpense(expense));
     }
+    print('${expenses.length} notes de frais sauvegardées localement.');
+    return keys;
+  }
 
-    try {
-      await _emailService.sendExpenseBatchEmail(
-          expenses: expenses, recipient: recipient, sender: sender, password: password);
+  void performBackgroundTasks(int expenseKey) {
+    Workmanager().registerOneOffTask(
+      "expenseTask-${expenseKey}",
+      taskSendExpense,
+      inputData: <String, dynamic>{'expenseKey': expenseKey},
+      constraints: Constraints(networkType: NetworkType.connected),
+    );
+    print('Tâche de fond pour une note programmée.');
+  }
 
-      for (var expense in expenses) {
-        await _googleSheetsService.appendExpense(expense, spreadsheetId);
-      }
-      print('Tâches de fond pour le lot terminées.');
-    } catch (e) {
-      print('Erreur lors de l\'exécution des tâches de fond pour le lot : $e');
-    }
+  void performBackgroundTasksForBatch(List<int> expenseKeys) {
+    Workmanager().registerOneOffTask(
+      "expenseBatchTask-${DateTime.now().millisecondsSinceEpoch}",
+      taskSendExpenseBatch,
+      inputData: <String, dynamic>{'expenseKeys': expenseKeys},
+      constraints: Constraints(networkType: NetworkType.connected),
+    );
+    print('Tâche de fond pour un lot programmée.');
   }
 
   Future<List<String>> _convertPdfToImages(String pdfPath) async {
@@ -106,30 +105,5 @@ class ExpenseController {
       await document?.close();
     }
     return imagePaths;
-  }
-
-  Future<void> saveExpenseLocally(ExpenseModel expense) async {
-    await _storageService.saveExpense(expense);
-  }
-
-  void performBackgroundTasks(ExpenseModel expense) async {
-    final sender = dotenv.env['SENDER_EMAIL'];
-    final password = dotenv.env['SENDER_APP_PASSWORD'];
-    final recipient = await _settingsService.getRecipientEmail();
-    final spreadsheetId = dotenv.env['GOOGLE_SHEET_ID'];
-
-    if (sender == null || password == null || spreadsheetId == null) {
-      print('Variables d\'environnement manquantes pour les tâches de fond.');
-      return;
-    }
-
-    try {
-      await _emailService.sendExpenseEmail(
-          expense: expense, recipient: recipient, sender: sender, password: password);
-      await _googleSheetsService.appendExpense(expense, spreadsheetId);
-      print('Tâches de fond pour une note terminées.');
-    } catch (e) {
-      print('Erreur lors de l\'exécution des tâches de fond : $e');
-    }
   }
 }

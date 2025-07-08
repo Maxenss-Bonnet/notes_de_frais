@@ -6,7 +6,6 @@ plugins {
 
 android {
     namespace = "com.example.notes_de_frais"
-    // Mise à jour de la version du SDK de compilation
     compileSdk = 35
     ndkVersion = "27.0.12077973"
 
@@ -21,8 +20,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.notes_de_frais"
-        minSdk = flutter.minSdkVersion
-        // Mise à jour de la version du SDK cible
+        minSdk = 23
         targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
