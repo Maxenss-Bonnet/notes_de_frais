@@ -31,6 +31,9 @@ dependencies:
   fl_chart: ^0.68.0
   collection: ^1.18.0
   badges: ^3.1.2
+  flutter_image_compress: ^2.3.0 # Ajouté
+  connectivity_plus: ^6.0.3 # Ajouté
+
 
 dev_dependencies:
   flutter_test:

@@ -13,4 +13,5 @@ const List<String> kCompanyList = [
   'SCI Module',
   'SCI de l’académie',
   'Académie',
+  'Autre',
 ];

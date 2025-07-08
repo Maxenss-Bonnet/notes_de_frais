@@ -26,11 +26,48 @@ class _ValidationViewState extends State<ValidationView> {
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
   OverlayEntry? _overlayEntry;
 
+  // Nouveaux états pour l'édition
+  bool _isEditing = false;
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _dateController;
+  late TextEditingController _amountController;
+  late TextEditingController _vatController;
+  late TextEditingController _companyController;
+  late TextEditingController _categoryController;
+
   @override
   void initState() {
     super.initState();
     _editableExpense = widget.expense;
     _selectedCompany = _editableExpense.associatedTo;
+
+    // Initialiser les contrôleurs
+    _dateController = TextEditingController(text: _editableExpense.date != null ? _dateFormat.format(_editableExpense.date!) : '');
+    _amountController = TextEditingController(text: _editableExpense.amount?.toString() ?? '');
+    _vatController = TextEditingController(text: _editableExpense.vat?.toString() ?? '');
+    _companyController = TextEditingController(text: _editableExpense.company ?? '');
+    _categoryController = TextEditingController(text: _editableExpense.category ?? '');
+  }
+
+  @override
+  void dispose() {
+    // Disposer les contrôleurs
+    _dateController.dispose();
+    _amountController.dispose();
+    _vatController.dispose();
+    _companyController.dispose();
+    _categoryController.dispose();
+    super.dispose();
+  }
+
+  void _updateExpenseFromControllers() {
+    if (_formKey.currentState!.validate()) {
+      _editableExpense.date = _dateFormat.parse(_dateController.text);
+      _editableExpense.amount = double.tryParse(_amountController.text);
+      _editableExpense.vat = double.tryParse(_vatController.text);
+      _editableExpense.company = _companyController.text;
+      _editableExpense.category = _categoryController.text;
+    }
   }
 
   void _onSaveForBatch() {
@@ -39,6 +76,9 @@ class _ValidationViewState extends State<ValidationView> {
         const SnackBar(content: Text('Veuillez sélectionner une entreprise.')),
       );
       return;
+    }
+    if (_isEditing) {
+      _updateExpenseFromControllers();
     }
     _editableExpense.associatedTo = _selectedCompany;
     Navigator.of(context).pop(_editableExpense);
@@ -50,6 +90,9 @@ class _ValidationViewState extends State<ValidationView> {
         const SnackBar(content: Text('Veuillez sélectionner une entreprise.')),
       );
       return;
+    }
+    if (_isEditing) {
+      _updateExpenseFromControllers();
     }
     _editableExpense.associatedTo = _selectedCompany;
 
@@ -128,39 +171,59 @@ class _ValidationViewState extends State<ValidationView> {
         leading: widget.isInBatchMode
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).pop(_editableExpense))
             : null,
+        actions: [
+          IconButton(
+            icon: Icon(_isEditing ? Icons.done : Icons.edit),
+            tooltip: _isEditing ? 'Terminer' : 'Modifier',
+            onPressed: () {
+              setState(() {
+                if (_isEditing) {
+                  _updateExpenseFromControllers();
+                }
+                _isEditing = !_isEditing;
+              });
+            },
+          )
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: 100, left: 16, right: 16, top: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_editableExpense.processedImagePaths.isNotEmpty)
-              SizedBox(
-                height: 200,
-                child: PageView.builder(
-                  itemCount: _editableExpense.processedImagePaths.length,
-                  itemBuilder: (context, index) => Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Image.file(File(_editableExpense.processedImagePaths[index])),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_editableExpense.processedImagePaths.isNotEmpty)
+                SizedBox(
+                  height: 200,
+                  child: PageView.builder(
+                    itemCount: _editableExpense.processedImagePaths.length,
+                    itemBuilder: (context, index) => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Image.file(File(_editableExpense.processedImagePaths[index])),
+                    ),
                   ),
                 ),
-              ),
-            if (_editableExpense.processedImagePaths.length > 1)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.only(top: 8.0),
-                  child: Text('Faites glisser pour voir les autres pages', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              if (_editableExpense.processedImagePaths.length > 1)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 8.0),
+                    child: Text('Faites glisser pour voir les autres pages', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ),
                 ),
-              ),
-            const SizedBox(height: 24),
-            _buildInfoRow('Date', _editableExpense.date != null ? _dateFormat.format(_editableExpense.date!) : 'N/A'),
-            _buildInfoRow('Montant', '${_editableExpense.amount?.toStringAsFixed(2) ?? 'N/A'} €'),
-            _buildInfoRow('TVA', '${_editableExpense.vat?.toStringAsFixed(2) ?? 'N/A'} €'),
-            _buildInfoRow('Entreprise', _editableExpense.company ?? 'N/A'),
-            _buildInfoRow('Catégorie', _editableExpense.category ?? 'N/A'),
-            const SizedBox(height: 24),
-            _buildCompanyDropdown(),
-          ],
+              const SizedBox(height: 24),
+
+              // Champs modifiables
+              _buildEditableDateField(),
+              _buildEditableTextField(_amountController, 'Montant TTC', TextInputType.numberWithOptions(decimal: true)),
+              _buildEditableTextField(_vatController, 'TVA', TextInputType.numberWithOptions(decimal: true)),
+              _buildEditableTextField(_companyController, 'Entreprise (Marchand)'),
+              _buildEditableTextField(_categoryController, 'Catégorie'),
+
+              const SizedBox(height: 24),
+              _buildCompanyDropdown(),
+            ],
+          ),
         ),
       ),
       floatingActionButton: Padding(
@@ -181,16 +244,66 @@ class _ValidationViewState extends State<ValidationView> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildEditableTextField(TextEditingController controller, String label, [TextInputType? keyboardType]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text(value),
-        ],
-      ),
+      child: _isEditing
+          ? TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Ce champ ne peut pas être vide';
+          }
+          return null;
+        },
+      )
+          : _buildInfoRow(label, controller.text.isEmpty ? 'N/A' : controller.text),
+    );
+  }
+
+  Widget _buildEditableDateField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: _isEditing
+          ? TextFormField(
+        controller: _dateController,
+        decoration: const InputDecoration(
+          labelText: 'Date',
+          border: OutlineInputBorder(),
+          suffixIcon: Icon(Icons.calendar_today),
+        ),
+        readOnly: true,
+        onTap: () async {
+          DateTime initialDate = _dateFormat.tryParse(_dateController.text) ?? DateTime.now();
+          DateTime? pickedDate = await showDatePicker(
+            context: context,
+            initialDate: initialDate,
+            firstDate: DateTime(2000),
+            lastDate: DateTime.now().add(const Duration(days: 365)),
+          );
+          if (pickedDate != null) {
+            setState(() {
+              _dateController.text = _dateFormat.format(pickedDate);
+            });
+          }
+        },
+      )
+          : _buildInfoRow('Date', _dateController.text.isEmpty ? 'N/A' : _dateController.text),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+        Flexible(child: Text(value, style: Theme.of(context).textTheme.bodyLarge, textAlign: TextAlign.right,)),
+      ],
     );
   }
 

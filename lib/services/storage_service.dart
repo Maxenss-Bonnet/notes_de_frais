@@ -8,6 +8,22 @@ class StorageService {
     await _expenseBox.add(expense);
   }
 
+  // Nouvelle méthode pour la pagination
+  List<ExpenseModel> getExpenses({int page = 1, int limit = 15}) {
+    final allExpenses = _expenseBox.values.where((e) => !e.isInTrash).toList().reversed.toList();
+    final startIndex = (page - 1) * limit;
+
+    if (startIndex >= allExpenses.length) {
+      return [];
+    }
+
+    final endIndex = (startIndex + limit > allExpenses.length) ? allExpenses.length : startIndex + limit;
+
+    return allExpenses.sublist(startIndex, endIndex);
+  }
+
+  int get totalExpensesCount => _expenseBox.values.where((e) => !e.isInTrash).length;
+
   Future<void> moveToTrash(int key) async {
     final expense = _expenseBox.get(key);
     if (expense != null) {

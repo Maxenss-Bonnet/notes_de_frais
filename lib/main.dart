@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
+import 'package:notes_de_frais/models/task_model.dart';
+import 'package:notes_de_frais/services/background_task_service.dart';
 import 'package:notes_de_frais/views/camera_view.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -11,12 +13,17 @@ Future<void> main() async {
 
   await dotenv.load(fileName: ".env");
 
-  // Initialisation des données de localisation pour le formatage des dates
   await initializeDateFormatting('fr_FR', null);
 
   await Hive.initFlutter();
   Hive.registerAdapter(ExpenseModelAdapter());
+  Hive.registerAdapter(TaskModelAdapter());
+  Hive.registerAdapter(TaskTypeAdapter());
   await Hive.openBox<ExpenseModel>('expenses');
+  await Hive.openBox<TaskModel>('tasks');
+
+  // Initialiser le service de traitement des tâches de fond
+  await BackgroundTaskService().initialize();
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
