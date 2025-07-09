@@ -1,5 +1,3 @@
-// lib/models/expense_model.dart
-
 import 'package:hive/hive.dart';
 
 part 'expense_model.g.dart';
@@ -36,6 +34,24 @@ class ExpenseModel extends HiveObject {
   @HiveField(9)
   String? normalizedMerchantName;
 
+  @HiveField(10)
+  double? amountConfidence;
+
+  @HiveField(11)
+  double? dateConfidence;
+
+  @HiveField(12)
+  double? companyConfidence;
+
+  @HiveField(13)
+  double? vatConfidence;
+
+  @HiveField(14)
+  double? categoryConfidence;
+
+  @HiveField(15)
+  double? normalizedMerchantNameConfidence;
+
   ExpenseModel({
     required this.imagePath,
     this.processedImagePaths = const [],
@@ -47,5 +63,11 @@ class ExpenseModel extends HiveObject {
     this.isInTrash = false,
     this.category,
     this.normalizedMerchantName,
+    this.amountConfidence,
+    this.dateConfidence,
+    this.companyConfidence,
+    this.vatConfidence,
+    this.categoryConfidence,
+    this.normalizedMerchantNameConfidence,
   });
 }

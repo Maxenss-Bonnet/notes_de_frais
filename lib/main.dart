@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
 import 'package:notes_de_frais/models/task_model.dart';
 import 'package:notes_de_frais/services/background_task_service.dart';
@@ -22,7 +23,6 @@ Future<void> main() async {
   await Hive.openBox<ExpenseModel>('expenses');
   await Hive.openBox<TaskModel>('tasks');
 
-  // Initialiser le service de traitement des tâches de fond
   await BackgroundTaskService().initialize();
 
   await SystemChrome.setPreferredOrientations([
@@ -30,7 +30,7 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {

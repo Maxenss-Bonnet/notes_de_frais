@@ -1,44 +1,42 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:notes_de_frais/services/statistics_service.dart';
+import 'package:notes_de_frais/providers/providers.dart';
+import 'package:notes_de_frais/services/statistics_service.dart'; // Import corrigé
 import 'package:notes_de_frais/views/category_detail_view.dart';
 
-class StatisticsView extends StatefulWidget {
+class StatisticsView extends ConsumerWidget {
   const StatisticsView({super.key});
 
   @override
-  State<StatisticsView> createState() => _StatisticsViewState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsService = ref.watch(statisticsProvider);
+    final NumberFormat currencyFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
 
-class _StatisticsViewState extends State<StatisticsView> {
-  final StatisticsService _statsService = StatisticsService();
-  final NumberFormat _currencyFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Statistiques'),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          setState(() {});
+          ref.invalidate(statisticsProvider);
+          ref.invalidate(expensesStreamProvider);
         },
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildKpiSection(),
+              _buildKpiSection(statsService, currencyFormat),
               const SizedBox(height: 24),
               _buildSectionTitle('Dépenses par catégorie'),
               const SizedBox(height: 16),
-              _buildCategoryChart(),
+              _buildCategoryChart(context, statsService, currencyFormat),
               const SizedBox(height: 24),
               _buildSectionTitle('Activité de la semaine'),
               const SizedBox(height: 16),
-              _buildBarChart(),
+              _buildBarChart(statsService, currencyFormat),
             ],
           ),
         ),
@@ -46,23 +44,23 @@ class _StatisticsViewState extends State<StatisticsView> {
     );
   }
 
-  Widget _buildKpiSection() {
+  Widget _buildKpiSection(StatisticsService statsService, NumberFormat currencyFormat) {
     return Column(
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _buildKpiCard('Notes cette semaine', _statsService.getExpensesThisWeekCount().toString(), Icons.note_add_outlined, Colors.orange)),
+            Expanded(child: _buildKpiCard('Notes cette semaine', statsService.getExpensesThisWeekCount().toString(), Icons.note_add_outlined, Colors.orange)),
             const SizedBox(width: 16),
-            Expanded(child: _buildKpiCard('TVA (cette semaine)', _currencyFormat.format(_statsService.getVatSavedThisWeek()), Icons.calendar_today, Colors.purple)),
+            Expanded(child: _buildKpiCard('TVA (cette semaine)', currencyFormat.format(statsService.getVatSavedThisWeek()), Icons.calendar_today, Colors.purple)),
           ],
         ),
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: _buildKpiCard('Total TVA économisée', _currencyFormat.format(_statsService.getTotalVatSaved()), Icons.shield_outlined, Colors.green)),
+            Expanded(child: _buildKpiCard('Total TVA économisée', currencyFormat.format(statsService.getTotalVatSaved()), Icons.shield_outlined, Colors.green)),
             const SizedBox(width: 16),
-            Expanded(child: _buildKpiCard('Dépenses totales', _currencyFormat.format(_statsService.getTotalAmountSpent()), Icons.receipt_long_outlined, Colors.blue)),
+            Expanded(child: _buildKpiCard('Dépenses totales', currencyFormat.format(statsService.getTotalAmountSpent()), Icons.receipt_long_outlined, Colors.blue)),
           ],
         ),
       ],
@@ -100,8 +98,8 @@ class _StatisticsViewState extends State<StatisticsView> {
     );
   }
 
-  Widget _buildCategoryChart() {
-    final data = _statsService.getExpensesByCategory();
+  Widget _buildCategoryChart(BuildContext context, StatisticsService statsService, NumberFormat currencyFormat) {
+    final data = statsService.getExpensesByCategory();
     if (data.isEmpty) return const SizedBox(height: 150, child: Center(child: Text('Aucune dépense à afficher')));
 
     return SizedBox(
@@ -113,7 +111,7 @@ class _StatisticsViewState extends State<StatisticsView> {
             return PieChartSectionData(
               color: Colors.primaries[index % Colors.primaries.length].withOpacity(0.8),
               value: entry.value,
-              title: '${entry.key}\n${_currencyFormat.format(entry.value)}',
+              title: '${entry.key}\n${currencyFormat.format(entry.value)}',
               radius: 80,
               titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(blurRadius: 2)]),
               titlePositionPercentageOffset: 0.55,
@@ -142,8 +140,8 @@ class _StatisticsViewState extends State<StatisticsView> {
     );
   }
 
-  Widget _buildBarChart() {
-    final data = _statsService.getWeeklySummary();
+  Widget _buildBarChart(StatisticsService statsService, NumberFormat currencyFormat) {
+    final data = statsService.getWeeklySummary();
     if (data.values.every((v) => v == 0)) return const SizedBox(height: 150, child: Center(child: Text('Aucune dépense cette semaine')));
 
     final maxValue = data.values.isEmpty ? 0 : data.values.reduce((a, b) => a > b ? a : b);
@@ -174,7 +172,7 @@ class _StatisticsViewState extends State<StatisticsView> {
             leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, getTitlesWidget: (value, meta) {
               if (value == 0) return const Text('');
               if (value % (maxValue / 4).ceil() == 0 || value == maxValue) {
-                return Text(_currencyFormat.format(value), style: const TextStyle(fontSize: 10));
+                return Text(currencyFormat.format(value), style: const TextStyle(fontSize: 10));
               }
               return const Text('');
             })),

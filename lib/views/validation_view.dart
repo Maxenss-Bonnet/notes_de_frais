@@ -26,7 +26,6 @@ class _ValidationViewState extends State<ValidationView> {
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
   OverlayEntry? _overlayEntry;
 
-  // Nouveaux états pour l'édition
   bool _isEditing = false;
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _dateController;
@@ -41,7 +40,6 @@ class _ValidationViewState extends State<ValidationView> {
     _editableExpense = widget.expense;
     _selectedCompany = _editableExpense.associatedTo;
 
-    // Initialiser les contrôleurs
     _dateController = TextEditingController(text: _editableExpense.date != null ? _dateFormat.format(_editableExpense.date!) : '');
     _amountController = TextEditingController(text: _editableExpense.amount?.toString() ?? '');
     _vatController = TextEditingController(text: _editableExpense.vat?.toString() ?? '');
@@ -51,7 +49,6 @@ class _ValidationViewState extends State<ValidationView> {
 
   @override
   void dispose() {
-    // Disposer les contrôleurs
     _dateController.dispose();
     _amountController.dispose();
     _vatController.dispose();
@@ -62,7 +59,7 @@ class _ValidationViewState extends State<ValidationView> {
 
   void _updateExpenseFromControllers() {
     if (_formKey.currentState!.validate()) {
-      _editableExpense.date = _dateFormat.parse(_dateController.text);
+      _editableExpense.date = _dateFormat.tryParse(_dateController.text);
       _editableExpense.amount = double.tryParse(_amountController.text);
       _editableExpense.vat = double.tryParse(_vatController.text);
       _editableExpense.company = _companyController.text;
@@ -213,12 +210,11 @@ class _ValidationViewState extends State<ValidationView> {
                 ),
               const SizedBox(height: 24),
 
-              // Champs modifiables
-              _buildEditableDateField(),
-              _buildEditableTextField(_amountController, 'Montant TTC', const TextInputType.numberWithOptions(decimal: true)),
-              _buildEditableTextField(_vatController, 'TVA', const TextInputType.numberWithOptions(decimal: true)),
-              _buildEditableTextField(_companyController, 'Entreprise (Marchand)'),
-              _buildEditableTextField(_categoryController, 'Catégorie'),
+              _buildEditableDateField(_editableExpense.dateConfidence),
+              _buildEditableTextField(_amountController, 'Montant TTC', _editableExpense.amountConfidence, const TextInputType.numberWithOptions(decimal: true)),
+              _buildEditableTextField(_vatController, 'TVA', _editableExpense.vatConfidence, const TextInputType.numberWithOptions(decimal: true)),
+              _buildEditableTextField(_companyController, 'Entreprise (Marchand)', _editableExpense.companyConfidence),
+              _buildEditableTextField(_categoryController, 'Catégorie', _editableExpense.categoryConfidence),
 
               const SizedBox(height: 24),
               _buildCompanyDropdown(),
@@ -244,7 +240,30 @@ class _ValidationViewState extends State<ValidationView> {
     );
   }
 
-  Widget _buildEditableTextField(TextEditingController controller, String label, [TextInputType? keyboardType]) {
+  Widget _buildConfidenceIndicator(double? confidence) {
+    if (confidence == null) return const SizedBox.shrink();
+
+    Color color;
+    IconData icon;
+
+    if (confidence >= 0.8) {
+      color = Colors.green;
+      icon = Icons.check_circle;
+    } else if (confidence >= 0.5) {
+      color = Colors.orange;
+      icon = Icons.warning;
+    } else {
+      color = Colors.red;
+      icon = Icons.error;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 8.0),
+      child: Icon(icon, color: color, size: 20),
+    );
+  }
+
+  Widget _buildEditableTextField(TextEditingController controller, String label, double? confidence, [TextInputType? keyboardType]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: _isEditing
@@ -254,6 +273,7 @@ class _ValidationViewState extends State<ValidationView> {
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
+          suffixIcon: _buildConfidenceIndicator(confidence),
         ),
         validator: (value) {
           if (value == null || value.isEmpty) {
@@ -262,20 +282,27 @@ class _ValidationViewState extends State<ValidationView> {
           return null;
         },
       )
-          : _buildInfoRow(label, controller.text.isEmpty ? 'N/A' : controller.text),
+          : _buildInfoRow(label, controller.text.isEmpty ? 'N/A' : controller.text, confidence),
     );
   }
 
-  Widget _buildEditableDateField() {
+  Widget _buildEditableDateField(double? confidence) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: _isEditing
           ? TextFormField(
         controller: _dateController,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Date',
-          border: OutlineInputBorder(),
-          suffixIcon: Icon(Icons.calendar_today),
+          border: const OutlineInputBorder(),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildConfidenceIndicator(confidence),
+              const Icon(Icons.calendar_today),
+              const SizedBox(width: 8),
+            ],
+          ),
         ),
         readOnly: true,
         onTap: () async {
@@ -293,17 +320,25 @@ class _ValidationViewState extends State<ValidationView> {
           }
         },
       )
-          : _buildInfoRow('Date', _dateController.text.isEmpty ? 'N/A' : _dateController.text),
+          : _buildInfoRow('Date', _dateController.text.isEmpty ? 'N/A' : _dateController.text, confidence),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-        Flexible(child: Text(value, style: Theme.of(context).textTheme.bodyLarge, textAlign: TextAlign.right,)),
-      ],
+  Widget _buildInfoRow(String label, String value, double? confidence) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+              _buildConfidenceIndicator(confidence),
+            ],
+          ),
+          Flexible(child: Text(value, style: Theme.of(context).textTheme.bodyLarge, textAlign: TextAlign.right,)),
+        ],
+      ),
     );
   }
 

@@ -1,5 +1,3 @@
-// lib/models/task_model.dart
-
 import 'package:hive/hive.dart';
 
 part 'task_model.g.dart';
@@ -15,7 +13,7 @@ class TaskModel extends HiveObject {
   final TaskType type;
 
   @HiveField(1)
-  final dynamic payload; // Could be ExpenseModel or List<ExpenseModel>
+  final dynamic payload;
 
   TaskModel({required this.type, required this.payload});
 }

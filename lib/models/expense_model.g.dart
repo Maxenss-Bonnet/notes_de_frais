@@ -1,5 +1,3 @@
-// lib/models/expense_model.g.dart
-
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
 part of 'expense_model.dart';
@@ -29,13 +27,19 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
       isInTrash: fields[7] as bool,
       category: fields[8] as String?,
       normalizedMerchantName: fields[9] as String?,
+      amountConfidence: fields[10] as double?,
+      dateConfidence: fields[11] as double?,
+      companyConfidence: fields[12] as double?,
+      vatConfidence: fields[13] as double?,
+      categoryConfidence: fields[14] as double?,
+      normalizedMerchantNameConfidence: fields[15] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ExpenseModel obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.imagePath)
       ..writeByte(1)
@@ -55,7 +59,19 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
       ..writeByte(8)
       ..write(obj.category)
       ..writeByte(9)
-      ..write(obj.normalizedMerchantName);
+      ..write(obj.normalizedMerchantName)
+      ..writeByte(10)
+      ..write(obj.amountConfidence)
+      ..writeByte(11)
+      ..write(obj.dateConfidence)
+      ..writeByte(12)
+      ..write(obj.companyConfidence)
+      ..writeByte(13)
+      ..write(obj.vatConfidence)
+      ..writeByte(14)
+      ..write(obj.categoryConfidence)
+      ..writeByte(15)
+      ..write(obj.normalizedMerchantNameConfidence);
   }
 
   @override
@@ -64,7 +80,7 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is ExpenseModelAdapter &&
-              runtimeType == other.runtimeType &&
-              typeId == other.typeId;
+      other is ExpenseModelAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
 }

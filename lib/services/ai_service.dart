@@ -1,5 +1,3 @@
-// lib/services/ai_service.dart
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -11,7 +9,7 @@ class AiService {
 
   AiService()
       : _model = GenerativeModel(
-    model: 'gemini-2.5-flash',
+    model: 'gemini-1.5-flash',
     apiKey: dotenv.env['GEMINI_API_KEY']!,
   );
 
@@ -47,6 +45,12 @@ class AiService {
           'company': decodedJson['company'],
           'category': decodedJson['category'],
           'normalizedMerchantName': decodedJson['normalizedMerchantName'],
+          'amountConfidence': (decodedJson['amountConfidence'] as num?)?.toDouble(),
+          'dateConfidence': (decodedJson['dateConfidence'] as num?)?.toDouble(),
+          'companyConfidence': (decodedJson['companyConfidence'] as num?)?.toDouble(),
+          'vatConfidence': (decodedJson['vatConfidence'] as num?)?.toDouble(),
+          'categoryConfidence': (decodedJson['categoryConfidence'] as num?)?.toDouble(),
+          'normalizedMerchantNameConfidence': (decodedJson['normalizedMerchantNameConfidence'] as num?)?.toDouble(),
         };
       }
     } catch (e) {
@@ -80,10 +84,15 @@ class AiService {
             - Shopping & Loisirs
             - Autre
 
-      3.  **Formatage de la Sortie :**
+      3.  **Indice de Confiance :**
+          * Pour **TOUS** les champs que tu extrais (`company`, `date`, `amount`, `vat`, `normalizedMerchantName`, `category`), ajoute un indice de confiance.
+          * Le nom du champ de confiance doit être le nom du champ original suffixé par `Confidence` (ex: `amountConfidence`).
+          * L'indice doit être un nombre entre 0.0 (très incertain) et 1.0 (très certain).
+
+      4.  **Formatage de la Sortie :**
           * Ta réponse doit être **UNIQUEMENT** un bloc de code JSON valide.
           * N'ajoute **AUCUN** texte ou markdown avant ou après le JSON.
-          * Si une information est introuvable, sa valeur doit être `null`.
+          * Si une information est introuvable, sa valeur doit être `null`, et son indice de confiance aussi.
 
       Analyse maintenant et fournis le JSON.
       '''

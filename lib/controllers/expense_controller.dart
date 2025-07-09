@@ -54,6 +54,12 @@ class ExpenseController {
             company: extractedData['company'],
             category: extractedData['category'],
             normalizedMerchantName: extractedData['normalizedMerchantName'],
+            amountConfidence: extractedData['amountConfidence'],
+            dateConfidence: extractedData['dateConfidence'],
+            companyConfidence: extractedData['companyConfidence'],
+            vatConfidence: extractedData['vatConfidence'],
+            categoryConfidence: extractedData['categoryConfidence'],
+            normalizedMerchantNameConfidence: extractedData['normalizedMerchantNameConfidence'],
           )
       );
     }
@@ -71,7 +77,7 @@ class ExpenseController {
     final task = TaskModel(type: TaskType.sendBatchExpense, payload: expenses);
     _taskQueueService.enqueueTask(task);
     print("Tâche pour le lot mise en file d'attente.");
-    BackgroundTaskService().processQueue(); // Ajouté : Déclenche le traitement immédiat
+    BackgroundTaskService().processQueue();
   }
 
   Future<List<String>> _convertPdfToImages(String pdfPath) async {
