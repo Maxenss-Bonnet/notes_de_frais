@@ -1,7 +1,6 @@
 // lib/models/task_model.dart
 
 import 'package:hive/hive.dart';
-import 'package:notes_de_frais/models/expense_model.dart';
 
 part 'task_model.g.dart';
 

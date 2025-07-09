@@ -148,7 +148,7 @@ class EmailService {
 
     try {
       final sendReport = await send(message, smtpServer);
-      print('Message groupé envoyé: ' + sendReport.toString());
+      print('Message groupé envoyé: $sendReport');
     } on MailerException catch (e) {
       print('Le message groupé n\'a pas pu être envoyé.');
       for (var p in e.problems) {
@@ -183,7 +183,7 @@ class EmailService {
 
     try {
       final sendReport = await send(message, smtpServer);
-      print('Message envoyé: ' + sendReport.toString());
+      print('Message envoyé: $sendReport');
     } on MailerException catch (e) {
       print('Le message n\'a pas pu être envoyé.');
       for (var p in e.problems) {

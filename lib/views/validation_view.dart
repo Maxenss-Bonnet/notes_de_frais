@@ -215,8 +215,8 @@ class _ValidationViewState extends State<ValidationView> {
 
               // Champs modifiables
               _buildEditableDateField(),
-              _buildEditableTextField(_amountController, 'Montant TTC', TextInputType.numberWithOptions(decimal: true)),
-              _buildEditableTextField(_vatController, 'TVA', TextInputType.numberWithOptions(decimal: true)),
+              _buildEditableTextField(_amountController, 'Montant TTC', const TextInputType.numberWithOptions(decimal: true)),
+              _buildEditableTextField(_vatController, 'TVA', const TextInputType.numberWithOptions(decimal: true)),
               _buildEditableTextField(_companyController, 'Entreprise (Marchand)'),
               _buildEditableTextField(_categoryController, 'Catégorie'),
 

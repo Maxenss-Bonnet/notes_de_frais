@@ -59,7 +59,7 @@ class TrashView extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
                   title: Text(expense.company ?? 'Note de frais'),
-                  subtitle: Text('Supprimée'),
+                  subtitle: const Text('Supprimée'),
                   trailing: IconButton(
                     icon: const Icon(Icons.restore_from_trash),
                     tooltip: 'Restaurer',
