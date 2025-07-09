@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
 import 'package:notes_de_frais/models/task_model.dart';
+import 'package:notes_de_frais/providers/providers.dart';
 import 'package:notes_de_frais/services/email_service.dart';
 import 'package:notes_de_frais/services/file_storage_service.dart';
 import 'package:notes_de_frais/services/google_sheets_service.dart';
@@ -10,15 +12,8 @@ import 'package:notes_de_frais/services/settings_service.dart';
 import 'package:notes_de_frais/services/task_queue_service.dart';
 
 class BackgroundTaskService {
-  // --- Singleton Pattern ---
-  static final BackgroundTaskService _instance = BackgroundTaskService._internal();
-
-  factory BackgroundTaskService() {
-    return _instance;
-  }
-
-  BackgroundTaskService._internal();
-  // -------------------------
+  final Ref _ref;
+  BackgroundTaskService(this._ref);
 
   final TaskQueueService _queueService = TaskQueueService();
   final EmailService _emailService = EmailService();
@@ -48,52 +43,10 @@ class BackgroundTaskService {
     _connectivitySubscription.cancel();
   }
 
-  Future<void> processQueue() async { // Changé de _processQueue à processQueue
-    if (_isProcessing) return;
-    _isProcessing = true;
+  Future<void> _executeTaskAndCleanup(TaskModel task, int totalTasks, int completedTasks) async {
+    final int totalSteps = 3;
+    final String taskMessage = "Envoi de la note ${completedTasks + 1}/$totalTasks";
 
-    final task = _queueService.getNextTask();
-    if (task != null) {
-      print("Tâche trouvée, type: ${task.type}");
-      try {
-        await _executeTask(task);
-
-        await _cleanupTaskFiles(task);
-        await _queueService.completeTask(task.key);
-
-        print("Tâche complétée et supprimée de la file.");
-
-        _isProcessing = false;
-        processQueue(); // Appel interne mis à jour
-      } catch (e) {
-        print("Erreur lors de l'exécution de la tâche: $e. Nouvel essai plus tard.");
-        _isProcessing = false;
-      }
-    } else {
-      print("File d'attente vide.");
-      _isProcessing = false;
-    }
-  }
-
-  Future<void> _cleanupTaskFiles(TaskModel task) async {
-    List<String> pathsToDelete = [];
-    switch (task.type) {
-      case TaskType.sendSingleExpense:
-        final expense = task.payload as ExpenseModel;
-        pathsToDelete.addAll(expense.processedImagePaths);
-        break;
-      case TaskType.sendBatchExpense:
-        final expenses = (task.payload as List).cast<ExpenseModel>();
-        for (final expense in expenses) {
-          pathsToDelete.addAll(expense.processedImagePaths);
-        }
-        break;
-    }
-    await _fileStorageService.deleteFiles(pathsToDelete);
-    print("Fichiers associés à la tâche nettoyés.");
-  }
-
-  Future<void> _executeTask(TaskModel task) async {
     final sender = dotenv.env['SENDER_EMAIL'];
     final password = dotenv.env['SENDER_APP_PASSWORD'];
     final recipient = await _settingsService.getRecipientEmail();
@@ -103,19 +56,100 @@ class BackgroundTaskService {
       throw Exception('Variables d\'environnement manquantes.');
     }
 
-    switch (task.type) {
-      case TaskType.sendSingleExpense:
-        final expense = task.payload as ExpenseModel;
-        await _emailService.sendExpenseEmail(expense: expense, recipient: recipient, sender: sender, password: password);
-        await _sheetsService.appendExpense(expense, spreadsheetId);
-        break;
-      case TaskType.sendBatchExpense:
-        final expenses = (task.payload as List).cast<ExpenseModel>();
-        await _emailService.sendExpenseBatchEmail(expenses: expenses, recipient: recipient, sender: sender, password: password);
-        for (var expense in expenses) {
-          await _sheetsService.appendExpense(expense, spreadsheetId);
-        }
-        break;
+    final expense = task.payload as ExpenseModel;
+
+    _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+        executionStatus: TaskExecutionStatus.processing,
+        message: taskMessage,
+        totalTasks: totalTasks,
+        completedTasks: completedTasks,
+        stepMessage: "Étape 1/$totalSteps: Envoi de l'e-mail...",
+        currentStep: 0,
+        totalSteps: totalSteps);
+    await _emailService.sendExpenseEmail(expense: expense, recipient: recipient, sender: sender, password: password);
+
+    _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+        executionStatus: TaskExecutionStatus.processing,
+        message: taskMessage,
+        totalTasks: totalTasks,
+        completedTasks: completedTasks,
+        stepMessage: "Étape 2/$totalSteps: Ajout à Google Sheets...",
+        currentStep: 1,
+        totalSteps: totalSteps);
+    await _sheetsService.appendExpense(expense, spreadsheetId);
+
+    _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+        executionStatus: TaskExecutionStatus.processing,
+        message: taskMessage,
+        totalTasks: totalTasks,
+        completedTasks: completedTasks,
+        stepMessage: "Étape 3/$totalSteps: Nettoyage des fichiers...",
+        currentStep: 2,
+        totalSteps: totalSteps);
+    List<String> pathsToDelete = [];
+    pathsToDelete.addAll(expense.processedImagePaths);
+    await _fileStorageService.deleteFiles(pathsToDelete);
+    print("Fichiers associés à la tâche nettoyés.");
+
+    _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+        executionStatus: TaskExecutionStatus.processing,
+        message: taskMessage,
+        totalTasks: totalTasks,
+        completedTasks: completedTasks,
+        stepMessage: "Terminé !",
+        currentStep: 3,
+        totalSteps: totalSteps);
+  }
+
+  Future<void> processQueue() async {
+    if (_isProcessing) return;
+    _isProcessing = true;
+
+    final initialTaskCount = _queueService.getTaskBox().length;
+    if (initialTaskCount == 0) {
+      _isProcessing = false;
+      return;
     }
+
+    _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+      executionStatus: TaskExecutionStatus.processing,
+      totalTasks: initialTaskCount,
+      completedTasks: 0,
+      message: 'Initialisation de l\'envoi...',
+    );
+
+    int completedCount = 0;
+
+    while (_queueService.getNextTask() != null) {
+      final task = _queueService.getNextTask()!;
+      try {
+        await _executeTaskAndCleanup(task, initialTaskCount, completedCount);
+
+        await _queueService.completeTask(task.key);
+        completedCount++;
+
+      } catch (e) {
+        print("Erreur lors de l'exécution de la tâche: $e. Nouvel essai plus tard.");
+        _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+            executionStatus: TaskExecutionStatus.error,
+            message: "Erreur: ${e.toString()}",
+            totalTasks: initialTaskCount,
+            completedTasks: completedCount);
+        _isProcessing = false;
+        return;
+      }
+    }
+
+    _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+        executionStatus: TaskExecutionStatus.success,
+        message: "Envoi terminé avec succès !",
+        totalTasks: initialTaskCount,
+        completedTasks: completedCount);
+
+    _isProcessing = false;
+
+    Future.delayed(const Duration(seconds: 2), () {
+      _ref.read(taskStatusProvider.notifier).state = TaskStatus(executionStatus: TaskExecutionStatus.idle);
+    });
   }
 }

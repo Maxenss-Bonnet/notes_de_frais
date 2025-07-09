@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
 import 'package:notes_de_frais/models/task_model.dart';
-import 'package:notes_de_frais/services/background_task_service.dart';
+import 'package:notes_de_frais/providers/providers.dart';
 import 'package:notes_de_frais/views/camera_view.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -23,8 +23,6 @@ Future<void> main() async {
   await Hive.openBox<ExpenseModel>('expenses');
   await Hive.openBox<TaskModel>('tasks');
 
-  await BackgroundTaskService().initialize();
-
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -33,8 +31,20 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
+
+  @override
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialise le service une seule fois au démarrage de l'app
+    ref.read(backgroundTaskServiceProvider).initialize();
+  }
 
   @override
   Widget build(BuildContext context) {

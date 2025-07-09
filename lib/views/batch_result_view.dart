@@ -1,21 +1,24 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:notes_de_frais/controllers/expense_controller.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
+import 'package:notes_de_frais/models/task_model.dart';
+import 'package:notes_de_frais/providers/providers.dart';
 import 'package:notes_de_frais/services/statistics_service.dart';
 import 'package:notes_de_frais/views/validation_view.dart';
 import 'package:intl/intl.dart';
 import 'package:notes_de_frais/widgets/animated_stat_widget.dart';
 
-class BatchResultView extends StatefulWidget {
+class BatchResultView extends ConsumerStatefulWidget {
   final List<ExpenseModel> expenses;
   const BatchResultView({super.key, required this.expenses});
 
   @override
-  State<BatchResultView> createState() => _BatchResultViewState();
+  ConsumerState<BatchResultView> createState() => _BatchResultViewState();
 }
 
-class _BatchResultViewState extends State<BatchResultView> {
+class _BatchResultViewState extends ConsumerState<BatchResultView> {
   final ExpenseController _controller = ExpenseController();
   final StatisticsService _statsService = StatisticsService();
   late List<ExpenseModel> _expenses;
@@ -58,8 +61,19 @@ class _BatchResultViewState extends State<BatchResultView> {
     _hideRewardOverlay();
 
     if (mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      _showProgressDialog();
+      ref.read(backgroundTaskServiceProvider).processQueue();
     }
+  }
+
+  void _showProgressDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const _ProgressDialogAnimator();
+      },
+    );
   }
 
   void _showRewardOverlay({
@@ -167,6 +181,118 @@ class _BatchResultViewState extends State<BatchResultView> {
         ),
       ) : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+}
+
+class _ProgressDialogAnimator extends ConsumerStatefulWidget {
+  const _ProgressDialogAnimator();
+
+  @override
+  ConsumerState<_ProgressDialogAnimator> createState() => __ProgressDialogAnimatorState();
+}
+
+class __ProgressDialogAnimatorState extends ConsumerState<_ProgressDialogAnimator> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  double _lastProgressTarget = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this);
+    _animation = Tween<double>(begin: 0.0, end: 0.0).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String _getDialogTitle(TaskExecutionStatus status) {
+    switch (status) {
+      case TaskExecutionStatus.processing: return 'Envoi en cours...';
+      case TaskExecutionStatus.success: return 'Terminé !';
+      case TaskExecutionStatus.error: return 'Erreur';
+      default: return 'En attente';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<TaskStatus>(taskStatusProvider, (previous, next) {
+      if (next.executionStatus == TaskExecutionStatus.success || next.executionStatus == TaskExecutionStatus.error) {
+        _controller.animateTo(1.0, duration: const Duration(milliseconds: 500), curve: Curves.easeIn).whenComplete(() {
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            if (mounted) {
+              Navigator.of(context).pop();
+              if (next.executionStatus == TaskExecutionStatus.success) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
+            }
+          });
+        });
+      } else {
+        if (next.progress > _lastProgressTarget) {
+          final begin = _animation.value;
+          final end = next.progress;
+          _animation = Tween<double>(begin: begin, end: end).animate(
+              CurvedAnimation(parent: _controller, curve: Curves.linear)
+          );
+          _controller.duration = const Duration(seconds: 2);
+          _controller.forward(from: 0.0);
+          _lastProgressTarget = end;
+        }
+      }
+    });
+
+    final status = ref.watch(taskStatusProvider);
+
+    Widget content;
+    switch (status.executionStatus) {
+      case TaskExecutionStatus.success:
+        content = Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.check_circle, color: Colors.green, size: 48),
+          const SizedBox(height: 20),
+          Text(status.message ?? 'Opération réussie.'),
+        ]);
+        break;
+      case TaskExecutionStatus.error:
+        content = Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.error, color: Colors.red, size: 48),
+          const SizedBox(height: 20),
+          Text(status.message ?? 'Une erreur est survenue.'),
+        ]);
+        break;
+      default:
+        content = AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(
+                  value: _animation.value,
+                  minHeight: 6,
+                ),
+                const SizedBox(height: 20),
+                Text(status.message ?? 'Veuillez patienter.'),
+                const SizedBox(height: 10),
+                if (status.stepMessage != null)
+                  Text(
+                    status.stepMessage!,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+              ],
+            );
+          },
+        );
+    }
+
+    return AlertDialog(
+      title: Text(_getDialogTitle(status.executionStatus)),
+      content: content,
     );
   }
 }

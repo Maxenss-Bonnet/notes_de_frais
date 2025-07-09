@@ -1,4 +1,10 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
 part of 'task_model.dart';
+
+// **************************************************************************
+// TypeAdapterGenerator
+// **************************************************************************
 
 class TaskModelAdapter extends TypeAdapter<TaskModel> {
   @override
@@ -46,8 +52,6 @@ class TaskTypeAdapter extends TypeAdapter<TaskType> {
     switch (reader.readByte()) {
       case 0:
         return TaskType.sendSingleExpense;
-      case 1:
-        return TaskType.sendBatchExpense;
       default:
         return TaskType.sendSingleExpense;
     }
@@ -58,9 +62,6 @@ class TaskTypeAdapter extends TypeAdapter<TaskType> {
     switch (obj) {
       case TaskType.sendSingleExpense:
         writer.writeByte(0);
-        break;
-      case TaskType.sendBatchExpense:
-        writer.writeByte(1);
         break;
     }
   }

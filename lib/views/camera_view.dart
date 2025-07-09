@@ -1,10 +1,10 @@
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:notes_de_frais/services/camera_service.dart';
 import 'package:notes_de_frais/views/history_view.dart';
 import 'package:notes_de_frais/views/processing_view.dart';
 import 'package:notes_de_frais/views/statistics_view.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:notes_de_frais/views/settings_view.dart';
 import 'package:badges/badges.dart' as badges;
 
@@ -16,22 +16,27 @@ class CameraView extends StatefulWidget {
 }
 
 class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
-  CameraController? _cameraController;
-  bool _isCameraInitialized = false;
-  bool _isCameraInitializing = false;
+  final CameraService _cameraService = CameraService();
   final List<String> _capturedImagePaths = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initializeCamera();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await _cameraService.initializeCamera();
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _cameraController?.dispose();
+    _cameraService.dispose();
     super.dispose();
   }
 
@@ -39,33 +44,12 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.inactive) {
-      _cameraController?.dispose();
-      if (mounted) setState(() => _isCameraInitialized = false);
+      _cameraService.dispose();
     } else if (state == AppLifecycleState.resumed) {
-      if (!_isCameraInitialized) _initializeCamera();
-    }
-  }
-
-  Future<void> _initializeCamera() async {
-    if (_isCameraInitializing) return;
-    setState(() => _isCameraInitializing = true);
-
-    var status = await Permission.camera.status;
-    if (!status.isGranted) status = await Permission.camera.request();
-
-    if (status.isGranted) {
-      final cameras = await availableCameras();
-      if (cameras.isNotEmpty) {
-        _cameraController = CameraController(cameras.first, ResolutionPreset.high, enableAudio: false);
-        try {
-          await _cameraController!.initialize();
-          if (mounted) setState(() => _isCameraInitialized = true);
-        } catch (e) {
-          print('Erreur initialisation caméra: $e');
-        }
+      if (!_cameraService.isCameraInitialized) {
+        _initialize();
       }
     }
-    if (mounted) setState(() => _isCameraInitializing = false);
   }
 
   void _navigateToProcessingView() {
@@ -75,18 +59,20 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         builder: (context) => ProcessingView(imagePaths: _capturedImagePaths),
       ),
     ).then((_) {
-      _capturedImagePaths.clear();
-      setState(() {});
+      if(mounted) {
+        setState(() {
+          _capturedImagePaths.clear();
+        });
+      }
     });
   }
 
   Future<void> _takePicture() async {
-    if (!_isCameraInitialized || _cameraController == null) return;
-    try {
-      final image = await _cameraController!.takePicture();
-      setState(() => _capturedImagePaths.add(image.path));
-    } catch (e) {
-      print('Erreur prise de photo: $e');
+    final imageFile = await _cameraService.takePicture();
+    if (imageFile != null) {
+      setState(() {
+        _capturedImagePaths.add(imageFile.path);
+      });
     }
   }
 
@@ -106,7 +92,9 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         allowMultiple: true,
       );
       if (result != null) {
-        setState(() => _capturedImagePaths.addAll(result.paths.whereType<String>()));
+        setState(() {
+          _capturedImagePaths.addAll(result.paths.whereType<String>());
+        });
       }
     } catch (e) {
       print('Erreur sélection de fichier: $e');
@@ -133,11 +121,11 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   Widget _buildCameraPreview() {
-    if (_isCameraInitialized && _cameraController != null) {
+    if (_cameraService.isCameraInitialized && _cameraService.cameraController != null) {
       return Stack(
         fit: StackFit.expand,
         children: [
-          Center(child: CameraPreview(_cameraController!)),
+          Center(child: CameraPreview(_cameraService.cameraController!)),
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(

@@ -9,7 +9,7 @@ class AiService {
 
   AiService()
       : _model = GenerativeModel(
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash-lite-preview-06-17',
     apiKey: dotenv.env['GEMINI_API_KEY']!,
   );
 

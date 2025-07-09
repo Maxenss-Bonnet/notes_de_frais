@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:notes_de_frais/models/task_model.dart';
-import 'package:notes_de_frais/services/background_task_service.dart';
 import 'package:notes_de_frais/services/file_storage_service.dart';
 import 'package:notes_de_frais/services/image_service.dart';
 import 'package:notes_de_frais/services/task_queue_service.dart';
@@ -18,53 +17,64 @@ class ExpenseController {
   final FileStorageService _fileStorageService = FileStorageService();
 
   Future<List<ExpenseModel>> processImageBatch(List<String> originalFilePaths) async {
-    List<ExpenseModel> processedExpenses = [];
+    // Crée une liste de futures, chacun retournant une map avec le chemin original et le résultat.
+    final processingFutures = originalFilePaths.map((path) async {
+      final model = await _processSingleFile(path);
+      return { 'path': path, 'model': model };
+    }).toList();
 
-    for (String path in List.from(originalFilePaths)) {
-      final List<String> imagesToAnalyze = [];
-      final List<String> permanentImagePaths = [];
+    // Attend que toutes les analyses soient terminées.
+    final results = await Future.wait(processingFutures);
 
-      if (path.toLowerCase().endsWith('.pdf')) {
-        final pdfImages = await _convertPdfToImages(path);
-        imagesToAnalyze.addAll(pdfImages);
-      } else {
-        final compressedPath = await _imageService.compressImage(path);
-        imagesToAnalyze.add(compressedPath);
-      }
+    // Ré-assemble la liste dans l'ordre original pour éviter les mélanges.
+    final orderedExpenses = originalFilePaths.map((path) {
+      return results.firstWhere((res) => res['path'] == path)['model'] as ExpenseModel;
+    }).toList();
 
-      for (final imagePath in imagesToAnalyze) {
-        final permanentPath = await _fileStorageService.savePermanently(imagePath);
-        permanentImagePaths.add(permanentPath);
-      }
-
-      if (permanentImagePaths.isEmpty) {
-        processedExpenses.add(ExpenseModel(imagePath: path));
-        continue;
-      }
-
-      final extractedData = await _aiService.extractExpenseDataFromFiles(permanentImagePaths);
-
-      processedExpenses.add(
-          ExpenseModel(
-            imagePath: permanentImagePaths.first,
-            processedImagePaths: permanentImagePaths,
-            date: extractedData['date'],
-            amount: extractedData['amount'],
-            vat: extractedData['vat'],
-            company: extractedData['company'],
-            category: extractedData['category'],
-            normalizedMerchantName: extractedData['normalizedMerchantName'],
-            amountConfidence: extractedData['amountConfidence'],
-            dateConfidence: extractedData['dateConfidence'],
-            companyConfidence: extractedData['companyConfidence'],
-            vatConfidence: extractedData['vatConfidence'],
-            categoryConfidence: extractedData['categoryConfidence'],
-            normalizedMerchantNameConfidence: extractedData['normalizedMerchantNameConfidence'],
-          )
-      );
-    }
-    return processedExpenses;
+    return orderedExpenses;
   }
+
+  Future<ExpenseModel> _processSingleFile(String path) async {
+    final List<String> imagesToAnalyze = [];
+    final List<String> permanentImagePaths = [];
+
+    if (path.toLowerCase().endsWith('.pdf')) {
+      final pdfImages = await _convertPdfToImages(path);
+      imagesToAnalyze.addAll(pdfImages);
+    } else {
+      final compressedPath = await _imageService.compressImage(path);
+      imagesToAnalyze.add(compressedPath);
+    }
+
+    for (final imagePath in imagesToAnalyze) {
+      final permanentPath = await _fileStorageService.savePermanently(imagePath);
+      permanentImagePaths.add(permanentPath);
+    }
+
+    if (permanentImagePaths.isEmpty) {
+      return ExpenseModel(imagePath: path);
+    }
+
+    final extractedData = await _aiService.extractExpenseDataFromFiles(permanentImagePaths);
+
+    return ExpenseModel(
+      imagePath: permanentImagePaths.first,
+      processedImagePaths: permanentImagePaths,
+      date: extractedData['date'],
+      amount: extractedData['amount'],
+      vat: extractedData['vat'],
+      company: extractedData['company'],
+      category: extractedData['category'],
+      normalizedMerchantName: extractedData['normalizedMerchantName'],
+      amountConfidence: extractedData['amountConfidence'],
+      dateConfidence: extractedData['dateConfidence'],
+      companyConfidence: extractedData['companyConfidence'],
+      vatConfidence: extractedData['vatConfidence'],
+      categoryConfidence: extractedData['categoryConfidence'],
+      normalizedMerchantNameConfidence: extractedData['normalizedMerchantNameConfidence'],
+    );
+  }
+
 
   Future<void> saveExpenseBatchLocally(List<ExpenseModel> expenses) async {
     for (var expense in expenses) {
@@ -74,10 +84,11 @@ class ExpenseController {
   }
 
   void performBackgroundTasksForBatch(List<ExpenseModel> expenses) {
-    final task = TaskModel(type: TaskType.sendBatchExpense, payload: expenses);
-    _taskQueueService.enqueueTask(task);
-    print("Tâche pour le lot mise en file d'attente.");
-    BackgroundTaskService().processQueue();
+    for (var expense in expenses) {
+      final task = TaskModel(type: TaskType.sendSingleExpense, payload: expense);
+      _taskQueueService.enqueueTask(task);
+    }
+    print("${expenses.length} tâches mises en file d'attente.");
   }
 
   Future<List<String>> _convertPdfToImages(String pdfPath) async {
@@ -89,7 +100,7 @@ class ExpenseController {
       for (int i = 1; i <= document.pagesCount; i++) {
         final page = await document.getPage(i);
         final pageImage = await page.render(
-          width: page.width * 3, height: page.height * 3, format: PdfPageImageFormat.png, backgroundColor: '#FFFFFF',
+          width: page.width * 2, height: page.height * 2, format: PdfPageImageFormat.png, backgroundColor: '#FFFFFF',
         );
         await page.close();
         if (pageImage != null) {
@@ -116,6 +127,5 @@ class ExpenseController {
     final task = TaskModel(type: TaskType.sendSingleExpense, payload: expense);
     _taskQueueService.enqueueTask(task);
     print("Tâche unique mise en file d'attente.");
-    BackgroundTaskService().processQueue();
   }
 }
