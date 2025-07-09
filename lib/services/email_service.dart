@@ -3,6 +3,7 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 import 'package:intl/intl.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
+import 'package:path/path.dart' as p;
 
 class EmailService {
 
@@ -122,6 +123,11 @@ class EmailService {
     ''';
   }
 
+  // Helper pour nettoyer le nom de fichier
+  String _sanitizeFileName(String input) {
+    return input.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+  }
+
   Future<void> sendExpenseBatchEmail({
     required List<ExpenseModel> expenses,
     required String recipient,
@@ -132,10 +138,17 @@ class EmailService {
     final body = _formatBatchHtmlBody(expenses);
     final smtpServer = gmail(sender, password);
 
-    List<FileAttachment> allAttachments = [];
+    List<Attachment> allAttachments = [];
     for (var expense in expenses) {
+      final companyName = _sanitizeFileName(expense.company ?? 'Inconnu');
+      final dateString = expense.date != null ? DateFormat('yyyy-MM-dd').format(expense.date!) : 'Date_Inconnue';
+      int i = 1;
+
       for (var path in expense.processedImagePaths) {
-        allAttachments.add(FileAttachment(File(path)));
+        final file = File(path);
+        final extension = p.extension(path);
+        final newFileName = '${dateString}_${companyName}_${i++}$extension';
+        allAttachments.add(FileAttachment(file, fileName: newFileName));
       }
     }
 
@@ -148,7 +161,7 @@ class EmailService {
 
     try {
       final sendReport = await send(message, smtpServer);
-      print('Message groupé envoyé: $sendReport');
+      print('Message groupé envoyé: ' + sendReport.toString());
     } on MailerException catch (e) {
       print('Le message groupé n\'a pas pu être envoyé.');
       for (var p in e.problems) {
@@ -168,22 +181,30 @@ class EmailService {
     final date = expense.date != null ? dateFormat.format(expense.date!) : 'Ticket';
     final subject = 'Note de frais - ${expense.company ?? 'N/A'} - $date';
     final body = _formatHtmlBody(expense);
-
     final smtpServer = gmail(sender, password);
+
+    final companyName = _sanitizeFileName(expense.company ?? 'Inconnu');
+    final dateString = expense.date != null ? DateFormat('yyyy-MM-dd').format(expense.date!) : 'Date_Inconnue';
+    final List<Attachment> attachments = [];
+    int i = 1;
+
+    for (final path in expense.processedImagePaths) {
+      final file = File(path);
+      final extension = p.extension(path);
+      final newFileName = '${dateString}_${companyName}_${i++}$extension';
+      attachments.add(FileAttachment(file, fileName: newFileName));
+    }
 
     final message = Message()
       ..from = Address(sender, 'Notes de Frais App')
       ..recipients.add(recipient)
       ..subject = subject
       ..html = body
-      ..attachments = [
-        for (final path in expense.processedImagePaths)
-          FileAttachment(File(path)),
-      ];
+      ..attachments = attachments;
 
     try {
       final sendReport = await send(message, smtpServer);
-      print('Message envoyé: $sendReport');
+      print('Message envoyé: ' + sendReport.toString());
     } on MailerException catch (e) {
       print('Le message n\'a pas pu être envoyé.');
       for (var p in e.problems) {
