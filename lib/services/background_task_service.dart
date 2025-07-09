@@ -43,9 +43,10 @@ class BackgroundTaskService {
     _connectivitySubscription.cancel();
   }
 
-  Future<void> _executeTaskAndCleanup(TaskModel task, int totalTasks, int completedTasks) async {
+  Future<void> _executeSingleTaskAndCleanup(TaskModel task, int totalTasks, int completedTasks) async {
     final int totalSteps = 3;
     final String taskMessage = "Envoi de la note ${completedTasks + 1}/$totalTasks";
+    final expense = task.payload as ExpenseModel;
 
     final sender = dotenv.env['SENDER_EMAIL'];
     final password = dotenv.env['SENDER_APP_PASSWORD'];
@@ -56,50 +57,63 @@ class BackgroundTaskService {
       throw Exception('Variables d\'environnement manquantes.');
     }
 
-    final expense = task.payload as ExpenseModel;
-
     _ref.read(taskStatusProvider.notifier).state = TaskStatus(
-        executionStatus: TaskExecutionStatus.processing,
-        message: taskMessage,
-        totalTasks: totalTasks,
-        completedTasks: completedTasks,
-        stepMessage: "Étape 1/$totalSteps: Envoi de l'e-mail...",
-        currentStep: 0,
-        totalSteps: totalSteps);
+        executionStatus: TaskExecutionStatus.processing, message: taskMessage, totalTasks: totalTasks, completedTasks: completedTasks,
+        stepMessage: "Étape 1/$totalSteps: Envoi de l'e-mail...", currentStep: 0, totalSteps: totalSteps);
     await _emailService.sendExpenseEmail(expense: expense, recipient: recipient, sender: sender, password: password);
 
     _ref.read(taskStatusProvider.notifier).state = TaskStatus(
-        executionStatus: TaskExecutionStatus.processing,
-        message: taskMessage,
-        totalTasks: totalTasks,
-        completedTasks: completedTasks,
-        stepMessage: "Étape 2/$totalSteps: Ajout à Google Sheets...",
-        currentStep: 1,
-        totalSteps: totalSteps);
+        executionStatus: TaskExecutionStatus.processing, message: taskMessage, totalTasks: totalTasks, completedTasks: completedTasks,
+        stepMessage: "Étape 2/$totalSteps: Ajout à Google Sheets...", currentStep: 1, totalSteps: totalSteps);
     await _sheetsService.appendExpense(expense, spreadsheetId);
 
     _ref.read(taskStatusProvider.notifier).state = TaskStatus(
-        executionStatus: TaskExecutionStatus.processing,
-        message: taskMessage,
-        totalTasks: totalTasks,
-        completedTasks: completedTasks,
-        stepMessage: "Étape 3/$totalSteps: Nettoyage des fichiers...",
-        currentStep: 2,
-        totalSteps: totalSteps);
-    List<String> pathsToDelete = [];
-    pathsToDelete.addAll(expense.processedImagePaths);
-    await _fileStorageService.deleteFiles(pathsToDelete);
+        executionStatus: TaskExecutionStatus.processing, message: taskMessage, totalTasks: totalTasks, completedTasks: completedTasks,
+        stepMessage: "Étape 3/$totalSteps: Nettoyage des fichiers...", currentStep: 2, totalSteps: totalSteps);
+    await _fileStorageService.deleteFiles(expense.processedImagePaths);
     print("Fichiers associés à la tâche nettoyés.");
 
     _ref.read(taskStatusProvider.notifier).state = TaskStatus(
-        executionStatus: TaskExecutionStatus.processing,
-        message: taskMessage,
-        totalTasks: totalTasks,
-        completedTasks: completedTasks,
-        stepMessage: "Terminé !",
-        currentStep: 3,
-        totalSteps: totalSteps);
+        executionStatus: TaskExecutionStatus.processing, message: taskMessage, totalTasks: totalTasks, completedTasks: completedTasks,
+        stepMessage: "Terminé !", currentStep: 3, totalSteps: totalSteps);
   }
+
+  Future<void> _executeBatchTaskAndCleanup(TaskModel task, int totalTasks, int completedTasks) async {
+    final expenses = (task.payload as List).cast<ExpenseModel>();
+    final int totalSteps = 3;
+    final String taskMessage = "Envoi du lot de ${expenses.length} notes";
+
+    final sender = dotenv.env['SENDER_EMAIL'];
+    final password = dotenv.env['SENDER_APP_PASSWORD'];
+    final recipient = await _settingsService.getRecipientEmail();
+    final spreadsheetId = dotenv.env['GOOGLE_SHEET_ID'];
+
+    if (sender == null || password == null || spreadsheetId == null) {
+      throw Exception('Variables d\'environnement manquantes.');
+    }
+
+    _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+        executionStatus: TaskExecutionStatus.processing, message: taskMessage, totalTasks: totalTasks, completedTasks: completedTasks,
+        stepMessage: "Étape 1/$totalSteps: Envoi de l'e-mail combiné...", currentStep: 0, totalSteps: totalSteps);
+    await _emailService.sendExpenseBatchEmail(expenses: expenses, recipient: recipient, sender: sender, password: password);
+
+    _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+        executionStatus: TaskExecutionStatus.processing, message: taskMessage, totalTasks: totalTasks, completedTasks: completedTasks,
+        stepMessage: "Étape 2/$totalSteps: Ajout à Google Sheets...", currentStep: 1, totalSteps: totalSteps);
+    await _sheetsService.appendExpenseBatch(expenses, spreadsheetId);
+
+    _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+        executionStatus: TaskExecutionStatus.processing, message: taskMessage, totalTasks: totalTasks, completedTasks: completedTasks,
+        stepMessage: "Étape 3/$totalSteps: Nettoyage des fichiers...", currentStep: 2, totalSteps: totalSteps);
+    List<String> pathsToDelete = expenses.expand((e) => e.processedImagePaths).toList();
+    await _fileStorageService.deleteFiles(pathsToDelete);
+    print("Fichiers associés au lot nettoyés.");
+
+    _ref.read(taskStatusProvider.notifier).state = TaskStatus(
+        executionStatus: TaskExecutionStatus.processing, message: taskMessage, totalTasks: totalTasks, completedTasks: completedTasks,
+        stepMessage: "Terminé !", currentStep: 3, totalSteps: totalSteps);
+  }
+
 
   Future<void> processQueue() async {
     if (_isProcessing) return;
@@ -123,7 +137,11 @@ class BackgroundTaskService {
     while (_queueService.getNextTask() != null) {
       final task = _queueService.getNextTask()!;
       try {
-        await _executeTaskAndCleanup(task, initialTaskCount, completedCount);
+        if (task.type == TaskType.sendSingleExpense) {
+          await _executeSingleTaskAndCleanup(task, initialTaskCount, completedCount);
+        } else if (task.type == TaskType.sendExpenseBatch) {
+          await _executeBatchTaskAndCleanup(task, initialTaskCount, completedCount);
+        }
 
         await _queueService.completeTask(task.key);
         completedCount++;
@@ -149,7 +167,9 @@ class BackgroundTaskService {
     _isProcessing = false;
 
     Future.delayed(const Duration(seconds: 2), () {
-      _ref.read(taskStatusProvider.notifier).state = TaskStatus(executionStatus: TaskExecutionStatus.idle);
+      if(_ref.read(taskStatusProvider.notifier).state.executionStatus != TaskExecutionStatus.processing){
+        _ref.read(taskStatusProvider.notifier).state = TaskStatus(executionStatus: TaskExecutionStatus.idle);
+      }
     });
   }
 }

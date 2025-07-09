@@ -17,6 +17,10 @@ class GoogleSheetsService {
 
   Future<String?> _uploadFileToDrive(drive.DriveApi driveApi, String filePath) async {
     final file = File(filePath);
+    if (!await file.exists()) {
+      print("Le fichier à téléverser n'existe pas: $filePath");
+      return null;
+    }
     try {
       final driveFile = drive.File()..name = 'justificatif_${DateTime.now().millisecondsSinceEpoch}.png';
       final result = await driveApi.files.create(
@@ -71,6 +75,45 @@ class GoogleSheetsService {
       print('Note de frais ajoutée à Google Sheets avec lien vers le justificatif.');
     } catch (e) {
       print('Erreur lors de l\'ajout à Google Sheets: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> appendExpenseBatch(List<ExpenseModel> expenses, String spreadsheetId) async {
+    if (expenses.isEmpty) return;
+    try {
+      final client = await _getAuthClient();
+      final sheetsApi = SheetsApi(client);
+      final driveApi = drive.DriveApi(client);
+
+      final List<List<dynamic>> rows = [];
+      final dateFormat = DateFormat('dd/MM/yyyy');
+
+      for (final expense in expenses) {
+        String? receiptLink;
+        if (expense.processedImagePaths.isNotEmpty) {
+          receiptLink = await _uploadFileToDrive(driveApi, expense.processedImagePaths.first);
+        }
+
+        rows.add([
+          expense.date != null ? dateFormat.format(expense.date!) : 'N/A',
+          expense.company ?? 'N/A',
+          expense.associatedTo ?? 'N/A',
+          expense.amount,
+          expense.vat,
+          receiptLink ?? 'Aucun justificatif',
+        ]);
+      }
+
+      await sheetsApi.spreadsheets.values.append(
+        ValueRange(values: rows),
+        spreadsheetId,
+        'Dépenses!A1',
+        valueInputOption: 'USER_ENTERED',
+      );
+      print('${expenses.length} notes de frais ajoutées à Google Sheets en un lot.');
+    } catch (e) {
+      print('Erreur lors de l\'ajout du lot à Google Sheets: $e');
       rethrow;
     }
   }

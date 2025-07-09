@@ -52,6 +52,8 @@ class TaskTypeAdapter extends TypeAdapter<TaskType> {
     switch (reader.readByte()) {
       case 0:
         return TaskType.sendSingleExpense;
+      case 1:
+        return TaskType.sendExpenseBatch;
       default:
         return TaskType.sendSingleExpense;
     }
@@ -62,6 +64,9 @@ class TaskTypeAdapter extends TypeAdapter<TaskType> {
     switch (obj) {
       case TaskType.sendSingleExpense:
         writer.writeByte(0);
+        break;
+      case TaskType.sendExpenseBatch:
+        writer.writeByte(1);
         break;
     }
   }

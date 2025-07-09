@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:notes_de_frais/models/task_model.dart';
 import 'package:notes_de_frais/services/file_storage_service.dart';
 import 'package:notes_de_frais/services/image_service.dart';
@@ -8,6 +9,7 @@ import 'package:pdfx/pdfx.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
 import 'package:notes_de_frais/services/ai_service.dart';
 import 'package:notes_de_frais/services/storage_service.dart';
+import 'package:path/path.dart' as p;
 
 class ExpenseController {
   final AiService _aiService = AiService();
@@ -17,21 +19,9 @@ class ExpenseController {
   final FileStorageService _fileStorageService = FileStorageService();
 
   Future<List<ExpenseModel>> processImageBatch(List<String> originalFilePaths) async {
-    // Crée une liste de futures, chacun retournant une map avec le chemin original et le résultat.
-    final processingFutures = originalFilePaths.map((path) async {
-      final model = await _processSingleFile(path);
-      return { 'path': path, 'model': model };
-    }).toList();
-
-    // Attend que toutes les analyses soient terminées.
+    final processingFutures = originalFilePaths.map((path) => _processSingleFile(path)).toList();
     final results = await Future.wait(processingFutures);
-
-    // Ré-assemble la liste dans l'ordre original pour éviter les mélanges.
-    final orderedExpenses = originalFilePaths.map((path) {
-      return results.firstWhere((res) => res['path'] == path)['model'] as ExpenseModel;
-    }).toList();
-
-    return orderedExpenses;
+    return results;
   }
 
   Future<ExpenseModel> _processSingleFile(String path) async {
@@ -84,15 +74,16 @@ class ExpenseController {
   }
 
   void performBackgroundTasksForBatch(List<ExpenseModel> expenses) {
-    for (var expense in expenses) {
-      final task = TaskModel(type: TaskType.sendSingleExpense, payload: expense);
+    if (expenses.isNotEmpty) {
+      final task = TaskModel(type: TaskType.sendExpenseBatch, payload: expenses);
       _taskQueueService.enqueueTask(task);
+      print("Tâche de lot pour ${expenses.length} notes mise en file d'attente.");
     }
-    print("${expenses.length} tâches mises en file d'attente.");
   }
 
   Future<List<String>> _convertPdfToImages(String pdfPath) async {
     final List<String> imagePaths = [];
+    final random = Random();
     PdfDocument? document;
     try {
       document = await PdfDocument.openFile(pdfPath);
@@ -104,7 +95,8 @@ class ExpenseController {
         );
         await page.close();
         if (pageImage != null) {
-          final imageFile = File('${tempDir.path}/pdf_page_${i}_${DateTime.now().millisecondsSinceEpoch}.png');
+          final uniqueFileName = 'pdf_page_${i}_${DateTime.now().millisecondsSinceEpoch}_${random.nextInt(999999)}.png';
+          final imageFile = File(p.join(tempDir.path, uniqueFileName));
           await imageFile.writeAsBytes(pageImage.bytes);
 
           final compressedPath = await _imageService.compressImage(imageFile.path);

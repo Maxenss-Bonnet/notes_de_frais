@@ -40,6 +40,7 @@ class TaskStatus {
 
 enum TaskType {
   sendSingleExpense,
+  sendExpenseBatch,
 }
 
 @HiveType(typeId: 1)
