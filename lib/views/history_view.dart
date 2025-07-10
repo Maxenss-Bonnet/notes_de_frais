@@ -31,31 +31,18 @@ class _HistoryViewState extends State<HistoryView> {
         _loadMoreExpenses();
       }
     });
-    // Écouter les changements dans la box pour rafraîchir la vue
-    _storageService.getExpenseBox().listenable().addListener(_refreshList);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _storageService.getExpenseBox().listenable().removeListener(_refreshList);
     super.dispose();
-  }
-
-  void _refreshList() {
-    setState(() {
-      _page = 1;
-      _expenses.clear();
-      _hasMore = true;
-      _loadMoreExpenses();
-    });
   }
 
   Future<void> _loadMoreExpenses() async {
     if (!_hasMore || _isLoading) return;
     setState(() => _isLoading = true);
 
-    // Simule un délai réseau pour voir le loader
     await Future.delayed(const Duration(milliseconds: 500));
 
     final newExpenses = _storageService.getExpenses(page: _page, limit: _limit);
@@ -86,7 +73,15 @@ class _HistoryViewState extends State<HistoryView> {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => const TrashView()),
-              );
+              ).then((_) {
+                // Rafraîchit la liste si des changements ont eu lieu dans la corbeille
+                setState(() {
+                  _page = 1;
+                  _expenses.clear();
+                  _hasMore = true;
+                  _loadMoreExpenses();
+                });
+              });
             },
           )
         ],
@@ -114,9 +109,28 @@ class _HistoryViewState extends State<HistoryView> {
             key: Key(expense.key.toString()),
             direction: DismissDirection.endToStart,
             onDismissed: (direction) {
-              _storageService.moveToTrash(expense.key);
+              final removedExpense = _expenses[index];
+              final removedIndex = index;
+
+              setState(() {
+                _expenses.removeAt(index);
+              });
+
+              _storageService.moveToTrash(removedExpense.key);
+
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Note de frais déplacée dans la corbeille')),
+                SnackBar(
+                  content: const Text('Note déplacée dans la corbeille'),
+                  action: SnackBarAction(
+                    label: 'Annuler',
+                    onPressed: () {
+                      setState(() {
+                        _expenses.insert(removedIndex, removedExpense);
+                      });
+                      _storageService.restoreFromTrash(removedExpense.key);
+                    },
+                  ),
+                ),
               );
             },
             background: Container(
