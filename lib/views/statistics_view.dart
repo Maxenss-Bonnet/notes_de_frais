@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:notes_de_frais/providers/providers.dart';
-import 'package:notes_de_frais/services/statistics_service.dart'; // Import corrigé
+import 'package:notes_de_frais/services/statistics_service.dart';
 import 'package:notes_de_frais/views/category_detail_view.dart';
 
 class StatisticsView extends ConsumerWidget {
@@ -11,7 +11,6 @@ class StatisticsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statsService = ref.watch(statisticsProvider);
     final NumberFormat currencyFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
 
     return Scaffold(
@@ -21,22 +20,21 @@ class StatisticsView extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(statisticsProvider);
-          ref.invalidate(expensesStreamProvider);
         },
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildKpiSection(statsService, currencyFormat),
+              _buildKpiSection(ref, currencyFormat),
               const SizedBox(height: 24),
               _buildSectionTitle('Dépenses par catégorie'),
               const SizedBox(height: 16),
-              _buildCategoryChart(context, statsService, currencyFormat),
+              _buildCategoryChart(context, ref, currencyFormat),
               const SizedBox(height: 24),
               _buildSectionTitle('Activité de la semaine'),
               const SizedBox(height: 16),
-              _buildBarChart(statsService, currencyFormat),
+              _buildBarChart(ref, currencyFormat),
             ],
           ),
         ),
@@ -44,23 +42,29 @@ class StatisticsView extends ConsumerWidget {
     );
   }
 
-  Widget _buildKpiSection(StatisticsService statsService, NumberFormat currencyFormat) {
+  Widget _buildKpiSection(WidgetRef ref, NumberFormat currencyFormat) {
+    // Utilisation des providers granulaires
+    final expensesThisWeek = ref.watch(expensesThisWeekCountProvider);
+    final vatThisWeek = ref.watch(vatSavedThisWeekProvider);
+    final totalVat = ref.watch(totalVatSavedProvider);
+    final totalAmount = ref.watch(totalAmountSpentProvider);
+
     return Column(
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _buildKpiCard('Notes cette semaine', statsService.getExpensesThisWeekCount().toString(), Icons.note_add_outlined, Colors.orange)),
+            Expanded(child: _buildKpiCard('Notes cette semaine', expensesThisWeek.toString(), Icons.note_add_outlined, Colors.orange)),
             const SizedBox(width: 16),
-            Expanded(child: _buildKpiCard('TVA (cette semaine)', currencyFormat.format(statsService.getVatSavedThisWeek()), Icons.calendar_today, Colors.purple)),
+            Expanded(child: _buildKpiCard('TVA (cette semaine)', currencyFormat.format(vatThisWeek), Icons.calendar_today, Colors.purple)),
           ],
         ),
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: _buildKpiCard('Total TVA économisée', currencyFormat.format(statsService.getTotalVatSaved()), Icons.shield_outlined, Colors.green)),
+            Expanded(child: _buildKpiCard('Total TVA économisée', currencyFormat.format(totalVat), Icons.shield_outlined, Colors.green)),
             const SizedBox(width: 16),
-            Expanded(child: _buildKpiCard('Dépenses totales', currencyFormat.format(statsService.getTotalAmountSpent()), Icons.receipt_long_outlined, Colors.blue)),
+            Expanded(child: _buildKpiCard('Dépenses totales', currencyFormat.format(totalAmount), Icons.receipt_long_outlined, Colors.blue)),
           ],
         ),
       ],
@@ -98,8 +102,8 @@ class StatisticsView extends ConsumerWidget {
     );
   }
 
-  Widget _buildCategoryChart(BuildContext context, StatisticsService statsService, NumberFormat currencyFormat) {
-    final data = statsService.getExpensesByCategory();
+  Widget _buildCategoryChart(BuildContext context, WidgetRef ref, NumberFormat currencyFormat) {
+    final data = ref.watch(expensesByCategoryProvider);
     if (data.isEmpty) return const SizedBox(height: 150, child: Center(child: Text('Aucune dépense à afficher')));
 
     return SizedBox(
@@ -140,8 +144,8 @@ class StatisticsView extends ConsumerWidget {
     );
   }
 
-  Widget _buildBarChart(StatisticsService statsService, NumberFormat currencyFormat) {
-    final data = statsService.getWeeklySummary();
+  Widget _buildBarChart(WidgetRef ref, NumberFormat currencyFormat) {
+    final data = ref.watch(weeklySummaryProvider);
     if (data.values.every((v) => v == 0)) return const SizedBox(height: 150, child: Center(child: Text('Aucune dépense cette semaine')));
 
     final maxValue = data.values.isEmpty ? 0 : data.values.reduce((a, b) => a > b ? a : b);

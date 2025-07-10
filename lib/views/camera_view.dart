@@ -7,6 +7,7 @@ import 'package:notes_de_frais/views/processing_view.dart';
 import 'package:notes_de_frais/views/statistics_view.dart';
 import 'package:notes_de_frais/views/settings_view.dart';
 import 'package:badges/badges.dart' as badges;
+import 'package:notes_de_frais/widgets/animated_icon_button.dart';
 
 class CameraView extends StatefulWidget {
   const CameraView({super.key});
@@ -111,9 +112,18 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(icon: const Icon(Icons.bar_chart), tooltip: 'Statistiques', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const StatisticsView()))),
-          IconButton(icon: const Icon(Icons.history), tooltip: 'Historique', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HistoryView()))),
-          IconButton(icon: const Icon(Icons.settings), tooltip: 'Paramètres', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsView()))),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: AnimatedIconButton(icon: Icons.bar_chart, tooltip: 'Statistiques', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const StatisticsView()))),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: AnimatedIconButton(icon: Icons.history, tooltip: 'Historique', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HistoryView()))),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: AnimatedIconButton(icon: Icons.settings, tooltip: 'Paramètres', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsView()))),
+          ),
         ],
       ),
       body: _buildCameraPreview(),

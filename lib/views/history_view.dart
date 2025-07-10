@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
 import 'package:notes_de_frais/services/storage_service.dart';
@@ -27,7 +26,9 @@ class _HistoryViewState extends State<HistoryView> {
     super.initState();
     _loadMoreExpenses();
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && !_isLoading) {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200 &&
+          !_isLoading) {
         _loadMoreExpenses();
       }
     });
@@ -41,6 +42,7 @@ class _HistoryViewState extends State<HistoryView> {
 
   Future<void> _loadMoreExpenses() async {
     if (!_hasMore || _isLoading) return;
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     await Future.delayed(const Duration(milliseconds: 500));
@@ -51,17 +53,20 @@ class _HistoryViewState extends State<HistoryView> {
       _hasMore = false;
     }
 
-    setState(() {
-      _expenses.addAll(newExpenses);
-      _page++;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _expenses.addAll(newExpenses);
+        _page++;
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final DateFormat dateFormat = DateFormat('dd MMMM yyyy', 'fr_FR');
-    final NumberFormat currencyFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
+    final NumberFormat currencyFormat =
+    NumberFormat.currency(locale: 'fr_FR', symbol: '€');
 
     return Scaffold(
       appBar: AppBar(
@@ -71,16 +76,19 @@ class _HistoryViewState extends State<HistoryView> {
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Corbeille',
             onPressed: () {
-              Navigator.of(context).push(
+              Navigator.of(context)
+                  .push(
                 MaterialPageRoute(builder: (context) => const TrashView()),
-              ).then((_) {
-                // Rafraîchit la liste si des changements ont eu lieu dans la corbeille
-                setState(() {
-                  _page = 1;
-                  _expenses.clear();
-                  _hasMore = true;
-                  _loadMoreExpenses();
-                });
+              )
+                  .then((_) {
+                if (mounted) {
+                  setState(() {
+                    _page = 1;
+                    _expenses.clear();
+                    _hasMore = true;
+                    _loadMoreExpenses();
+                  });
+                }
               });
             },
           )
@@ -98,10 +106,11 @@ class _HistoryViewState extends State<HistoryView> {
         itemCount: _expenses.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == _expenses.length) {
-            return const Center(child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CircularProgressIndicator(),
-            ));
+            return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                ));
           }
 
           final expense = _expenses[index];
@@ -110,28 +119,14 @@ class _HistoryViewState extends State<HistoryView> {
             direction: DismissDirection.endToStart,
             onDismissed: (direction) {
               final removedExpense = _expenses[index];
-              final removedIndex = index;
 
-              setState(() {
-                _expenses.removeAt(index);
-              });
+              if (mounted) {
+                setState(() {
+                  _expenses.removeAt(index);
+                });
+              }
 
               _storageService.moveToTrash(removedExpense.key);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Note déplacée dans la corbeille'),
-                  action: SnackBarAction(
-                    label: 'Annuler',
-                    onPressed: () {
-                      setState(() {
-                        _expenses.insert(removedIndex, removedExpense);
-                      });
-                      _storageService.restoreFromTrash(removedExpense.key);
-                    },
-                  ),
-                ),
-              );
             },
             background: Container(
               color: Colors.red,
@@ -140,7 +135,8 @@ class _HistoryViewState extends State<HistoryView> {
               child: const Icon(Icons.delete, color: Colors.white),
             ),
             child: Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ListTile(
                 leading: CircleAvatar(
                   backgroundImage: FileImage(File(expense.imagePath)),
@@ -153,7 +149,9 @@ class _HistoryViewState extends State<HistoryView> {
                   'Associé à : ${expense.associatedTo ?? 'N/A'}\n${expense.date != null ? dateFormat.format(expense.date!) : 'Date inconnue'}',
                 ),
                 trailing: Text(
-                  expense.amount != null ? currencyFormat.format(expense.amount) : 'N/A',
+                  expense.amount != null
+                      ? currencyFormat.format(expense.amount)
+                      : 'N/A',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.blue,

@@ -9,6 +9,7 @@ import 'package:notes_de_frais/services/statistics_service.dart';
 import 'package:notes_de_frais/views/validation_view.dart';
 import 'package:intl/intl.dart';
 import 'package:notes_de_frais/widgets/animated_stat_widget.dart';
+import 'package:shimmer/shimmer.dart';
 
 class BatchResultView extends ConsumerStatefulWidget {
   final List<ExpenseModel> expenses;
@@ -92,7 +93,15 @@ class _BatchResultViewState extends ConsumerState<BatchResultView> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Notes de frais enregistrées !', style: TextStyle(fontSize: 28, color: Colors.white, fontWeight: FontWeight.bold)),
+                  Shimmer.fromColors(
+                    baseColor: Colors.white,
+                    highlightColor: Colors.grey.shade400,
+                    period: const Duration(milliseconds: 2500),
+                    child: const Text(
+                      'Notes de frais enregistrées !',
+                      style: TextStyle(fontSize: 28, color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                   const SizedBox(height: 40),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
