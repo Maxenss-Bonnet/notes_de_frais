@@ -1,3 +1,5 @@
+import com.android.build.gradle.BaseExtension
+
 allprojects {
     repositories {
         google()
@@ -12,13 +14,17 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 
-    // Ajout pour forcer la version de Java sur tous les modules
     afterEvaluate {
+        // Force la version de Java
         if (project.plugins.hasPlugin("java")) {
             project.extensions.findByType<JavaPluginExtension>()?.apply {
                 sourceCompatibility = JavaVersion.VERSION_11
                 targetCompatibility = JavaVersion.VERSION_11
             }
+        }
+        // Force la version du SDK de compilation pour tous les modules Android
+        project.extensions.findByType<BaseExtension>()?.apply {
+            compileSdkVersion(35)
         }
     }
 }
