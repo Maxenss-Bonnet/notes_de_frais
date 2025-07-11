@@ -32,11 +32,12 @@ class _BatchResultViewState extends ConsumerState<BatchResultView> {
   }
 
   Future<void> _onValidateAll() async {
-    final validExpenses = _expenses.where((e) => e.associatedTo != null).toList();
+    final bool allAssociated = _expenses.every((e) => e.associatedTo != null);
+    final bool allCardsSelected = _expenses.every((e) => e.creditCard != null);
 
-    if (validExpenses.length != _expenses.length) {
+    if (!allAssociated || !allCardsSelected) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez associer toutes les notes à une entreprise avant de valider.')),
+        const SnackBar(content: Text('Veuillez associer chaque note à une entreprise et sélectionner une carte de crédit.')),
       );
       return;
     }
@@ -45,8 +46,8 @@ class _BatchResultViewState extends ConsumerState<BatchResultView> {
     final beforeWeeklyVat = _statsService.getVatSavedThisWeek();
     final beforeCount = _statsService.getExpensesThisWeekCount();
 
-    await _controller.saveExpenseBatchLocally(validExpenses);
-    _controller.performBackgroundTasksForBatch(validExpenses);
+    await _controller.saveExpenseBatchLocally(_expenses);
+    _controller.performBackgroundTasksForBatch(_expenses);
 
     final afterVat = _statsService.getTotalVatSaved();
     final afterWeeklyVat = _statsService.getVatSavedThisWeek();
@@ -103,13 +104,19 @@ class _BatchResultViewState extends ConsumerState<BatchResultView> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Flexible(child: AnimatedStatWidget(title: 'Notes (semaine)', beginValue: beforeCount.toDouble(), endValue: afterCount.toDouble(), icon: Icons.note_add_outlined, color: Colors.orange)),
-                      Flexible(child: AnimatedStatWidget(title: 'TVA (semaine)', beginValue: beforeWeeklyVat, endValue: afterWeeklyVat, icon: Icons.calendar_today, color: Colors.purple, isCurrency: true)),
-                      Flexible(child: AnimatedStatWidget(title: 'TVA (Total)', beginValue: beforeVat, endValue: afterVat, icon: Icons.shield_outlined, color: Colors.green, isCurrency: true)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Flexible(child: AnimatedStatWidget(title: 'Notes (semaine)', beginValue: beforeCount.toDouble(), endValue: afterCount.toDouble(), icon: Icons.note_add_outlined, color: Colors.orange)),
+                          Flexible(child: AnimatedStatWidget(title: 'TVA (semaine)', beginValue: beforeWeeklyVat, endValue: afterWeeklyVat, icon: Icons.calendar_today, color: Colors.purple, isCurrency: true)),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      AnimatedStatWidget(title: 'TVA (Total)', beginValue: beforeVat, endValue: afterVat, icon: Icons.shield_outlined, color: Colors.green, isCurrency: true),
                     ],
                   ),
                 ],
@@ -129,9 +136,8 @@ class _BatchResultViewState extends ConsumerState<BatchResultView> {
 
   @override
   Widget build(BuildContext context) {
-    final DateFormat dateFormat = DateFormat('dd MMM yyyy', 'fr_FR');
     final NumberFormat currencyFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
-    final bool allAssociated = _expenses.every((e) => e.associatedTo != null);
+    final bool allValidated = _expenses.every((e) => e.associatedTo != null && e.creditCard != null);
 
     return Scaffold(
       appBar: AppBar(
@@ -144,6 +150,7 @@ class _BatchResultViewState extends ConsumerState<BatchResultView> {
           final expense = _expenses[index];
           final bool isDataComplete = expense.date != null && expense.amount != null && expense.company != null;
           final bool isAssociated = expense.associatedTo != null;
+          final bool isCardSelected = expense.creditCard != null;
 
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -152,9 +159,20 @@ class _BatchResultViewState extends ConsumerState<BatchResultView> {
               contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               leading: const Icon(Icons.receipt_long, size: 40),
               title: Text(expense.normalizedMerchantName ?? expense.company ?? 'Analyse incomplète', style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(
-                  '${expense.category ?? "Non catégorisé"}\n${isAssociated ? "Associé à : ${expense.associatedTo}" : "Aucune société associée"}',
-                  style: TextStyle(color: isAssociated ? Colors.green : Colors.red)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(expense.category ?? "Non catégorisé"),
+                  Text(
+                    isAssociated ? "Associé à : ${expense.associatedTo}" : "Aucune société associée",
+                    style: TextStyle(color: isAssociated ? Colors.green : Colors.red, fontSize: 12),
+                  ),
+                  Text(
+                    isCardSelected ? "Carte : ${expense.creditCard}" : "Aucune carte sélectionnée",
+                    style: TextStyle(color: isCardSelected ? Colors.blueAccent : Colors.red, fontSize: 12),
+                  ),
+                ],
+              ),
               trailing: Text(
                 expense.amount != null ? currencyFormat.format(expense.amount) : 'N/A',
                 style: TextStyle(fontWeight: FontWeight.bold, color: isDataComplete ? Colors.blue : Colors.red, fontSize: 16),
@@ -177,7 +195,7 @@ class _BatchResultViewState extends ConsumerState<BatchResultView> {
       floatingActionButton: _expenses.isNotEmpty ? Padding(
         padding: const EdgeInsets.all(8.0),
         child: ElevatedButton.icon(
-          onPressed: allAssociated ? _onValidateAll : null,
+          onPressed: allValidated ? _onValidateAll : null,
           icon: const Icon(Icons.done_all),
           label: const Text('Tout valider et Envoyer'),
           style: ElevatedButton.styleFrom(

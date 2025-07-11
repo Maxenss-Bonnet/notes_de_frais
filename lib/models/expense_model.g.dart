@@ -33,13 +33,14 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
       vatConfidence: fields[13] as double?,
       categoryConfidence: fields[14] as double?,
       normalizedMerchantNameConfidence: fields[15] as double?,
+      creditCard: fields[16] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ExpenseModel obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.imagePath)
       ..writeByte(1)
@@ -71,7 +72,9 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
       ..writeByte(14)
       ..write(obj.categoryConfidence)
       ..writeByte(15)
-      ..write(obj.normalizedMerchantNameConfidence);
+      ..write(obj.normalizedMerchantNameConfidence)
+      ..writeByte(16)
+      ..write(obj.creditCard);
   }
 
   @override
@@ -80,7 +83,7 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ExpenseModelAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
+          other is ExpenseModelAdapter &&
+              runtimeType == other.runtimeType &&
+              typeId == other.typeId;
 }

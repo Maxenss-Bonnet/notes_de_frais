@@ -16,6 +16,7 @@ class EmailService {
     final vat = expense.vat != null ? numberFormat.format(expense.vat) : 'N/A';
     final company = expense.company ?? 'N/A';
     final associatedTo = expense.associatedTo ?? 'N/A';
+    final creditCard = expense.creditCard ?? 'N/A';
 
     return '''
     <!DOCTYPE html>
@@ -51,6 +52,10 @@ class EmailService {
           <tr>
             <th>Montant TVA</th>
             <td>$vat</td>
+          </tr>
+          <tr>
+            <th>Payé avec</th>
+            <td>$creditCard</td>
           </tr>
         </table>
         <p class="footer">E-mail généré automatiquement par l'application Notes de Frais.</p>
@@ -118,6 +123,7 @@ class EmailService {
       final vat = expense.vat != null ? numberFormat.format(expense.vat) : 'N/A';
       final company = expense.company ?? 'N/A';
       final associatedTo = expense.associatedTo ?? 'N/A';
+      final creditCard = expense.creditCard ?? 'N/A';
       return '''
         <tr>
           <td>$date</td>
@@ -125,6 +131,7 @@ class EmailService {
           <td>$associatedTo</td>
           <td>$amount</td>
           <td>$vat</td>
+          <td>$creditCard</td>
         </tr>
       ''';
     }).join('');
@@ -156,6 +163,7 @@ class EmailService {
               <th>Associé à</th>
               <th>Montant TTC</th>
               <th>Montant TVA</th>
+              <th>Payé avec</th>
             </tr>
           </thead>
           <tbody>

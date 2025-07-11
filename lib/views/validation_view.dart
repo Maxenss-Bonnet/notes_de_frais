@@ -27,6 +27,7 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
   final StatisticsService _statsService = StatisticsService();
   late ExpenseModel _editableExpense;
   String? _selectedCompany;
+  String? _selectedCard;
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
   OverlayEntry? _overlayEntry;
 
@@ -43,6 +44,7 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
     super.initState();
     _editableExpense = widget.expense;
     _selectedCompany = _editableExpense.associatedTo;
+    _selectedCard = _editableExpense.creditCard;
 
     _dateController = TextEditingController(text: _editableExpense.date != null ? _dateFormat.format(_editableExpense.date!) : '');
     _amountController = TextEditingController(text: _editableExpense.amount?.toString() ?? '');
@@ -71,31 +73,41 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
     }
   }
 
-  void _onSaveForBatch() {
+  bool _validateInputs() {
+    if (_selectedCard == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez sélectionner une carte de crédit.')),
+      );
+      return false;
+    }
     if (_selectedCompany == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez sélectionner une entreprise.')),
       );
-      return;
+      return false;
     }
+    return true;
+  }
+
+  void _onSaveForBatch() {
+    if (!_validateInputs()) return;
+
     if (_isEditing) {
       _updateExpenseFromControllers();
     }
     _editableExpense.associatedTo = _selectedCompany;
+    _editableExpense.creditCard = _selectedCard;
     Navigator.of(context).pop(_editableExpense);
   }
 
   Future<void> _onValidateAndSend() async {
-    if (_selectedCompany == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une entreprise.')),
-      );
-      return;
-    }
+    if (!_validateInputs()) return;
+
     if (_isEditing) {
       _updateExpenseFromControllers();
     }
     _editableExpense.associatedTo = _selectedCompany;
+    _editableExpense.creditCard = _selectedCard;
 
     final beforeVat = _statsService.getTotalVatSaved();
     final beforeWeeklyVat = _statsService.getVatSavedThisWeek();
@@ -159,13 +171,19 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Flexible(child: AnimatedStatWidget(title: 'Notes (semaine)', beginValue: beforeCount.toDouble(), endValue: afterCount.toDouble(), icon: Icons.note_add_outlined, color: Colors.orange)),
-                      Flexible(child: AnimatedStatWidget(title: 'TVA (semaine)', beginValue: beforeWeeklyVat, endValue: afterWeeklyVat, icon: Icons.calendar_today, color: Colors.purple, isCurrency: true)),
-                      Flexible(child: AnimatedStatWidget(title: 'TVA (Total)', beginValue: beforeVat, endValue: afterVat, icon: Icons.shield_outlined, color: Colors.green, isCurrency: true)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Flexible(child: AnimatedStatWidget(title: 'Notes (semaine)', beginValue: beforeCount.toDouble(), endValue: afterCount.toDouble(), icon: Icons.note_add_outlined, color: Colors.orange)),
+                          Flexible(child: AnimatedStatWidget(title: 'TVA (semaine)', beginValue: beforeWeeklyVat, endValue: afterWeeklyVat, icon: Icons.calendar_today, color: Colors.purple, isCurrency: true)),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      AnimatedStatWidget(title: 'TVA (Total)', beginValue: beforeVat, endValue: afterVat, icon: Icons.shield_outlined, color: Colors.green, isCurrency: true),
                     ],
                   ),
                 ],
@@ -240,6 +258,8 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
               _buildEditableTextField(_categoryController, 'Catégorie', _editableExpense.categoryConfidence),
 
               const SizedBox(height: 24),
+              _buildCreditCardSelection(),
+              const SizedBox(height: 16),
               _buildCompanyDropdown(),
             ],
           ),
@@ -262,6 +282,39 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
+
+  Widget _buildCreditCardSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Payé avec la carte :', style: Theme.of(context).textTheme.titleMedium),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Expanded(
+              child: RadioListTile<String>(
+                title: const Text('American Express'),
+                value: 'American Express',
+                groupValue: _selectedCard,
+                onChanged: (value) => setState(() => _selectedCard = value),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            Expanded(
+              child: RadioListTile<String>(
+                title: const Text('Personnel'),
+                value: 'Personnel',
+                groupValue: _selectedCard,
+                onChanged: (value) => setState(() => _selectedCard = value),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
 
   Widget _buildConfidenceIndicator(double? confidence) {
     if (confidence == null) return const SizedBox.shrink();

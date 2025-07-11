@@ -52,6 +52,9 @@ class ExpenseModel extends HiveObject {
   @HiveField(15)
   double? normalizedMerchantNameConfidence;
 
+  @HiveField(16)
+  String? creditCard;
+
   ExpenseModel({
     required this.imagePath,
     this.processedImagePaths = const [],
@@ -69,5 +72,6 @@ class ExpenseModel extends HiveObject {
     this.vatConfidence,
     this.categoryConfidence,
     this.normalizedMerchantNameConfidence,
+    this.creditCard,
   });
 }
