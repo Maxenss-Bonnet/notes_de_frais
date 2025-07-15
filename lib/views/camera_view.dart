@@ -1,6 +1,8 @@
 import 'package:camera/camera.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:notes_de_frais/providers/providers.dart';
 import 'package:notes_de_frais/services/camera_service.dart';
 import 'package:notes_de_frais/views/history_view.dart';
 import 'package:notes_de_frais/views/processing_view.dart';
@@ -9,14 +11,14 @@ import 'package:notes_de_frais/views/settings_view.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:notes_de_frais/widgets/animated_icon_button.dart';
 
-class CameraView extends StatefulWidget {
+class CameraView extends ConsumerStatefulWidget {
   const CameraView({super.key});
 
   @override
-  State<CameraView> createState() => _CameraViewState();
+  ConsumerState<CameraView> createState() => _CameraViewState();
 }
 
-class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
+class _CameraViewState extends ConsumerState<CameraView> with WidgetsBindingObserver {
   final CameraService _cameraService = CameraService();
   final List<String> _capturedImagePaths = [];
 
@@ -50,6 +52,8 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
       if (!_cameraService.isCameraInitialized) {
         _initialize();
       }
+      // Rafraîchit le compteur au retour sur l'application
+      ref.invalidate(unsentExpensesCountProvider);
     }
   }
 
@@ -60,7 +64,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         builder: (context) => ProcessingView(imagePaths: _capturedImagePaths),
       ),
     ).then((_) {
-      if(mounted) {
+      if (mounted) {
         setState(() {
           _capturedImagePaths.clear();
         });
@@ -104,6 +108,8 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final unsentCount = ref.watch(unsentExpensesCountProvider);
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -118,10 +124,18 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: AnimatedIconButton(icon: Icons.history, tooltip: 'Historique', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HistoryView()))),
+            child: badges.Badge(
+              showBadge: unsentCount > 0,
+              badgeContent: Text('$unsentCount', style: const TextStyle(color: Colors.white)),
+              position: badges.BadgePosition.topEnd(top: 0, end: 0),
+              child: AnimatedIconButton(
+                  icon: Icons.history,
+                  tooltip: 'Historique',
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HistoryView()))),
+            ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 16.0, 8.0),
             child: AnimatedIconButton(icon: Icons.settings, tooltip: 'Paramètres', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsView()))),
           ),
         ],
@@ -148,7 +162,8 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
                   GestureDetector(
                     onTap: _takePicture,
                     child: Container(
-                      width: 72, height: 72,
+                      width: 72,
+                      height: 72,
                       decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)),
                     ),
                   ),

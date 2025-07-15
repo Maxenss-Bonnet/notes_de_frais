@@ -24,11 +24,10 @@ class _BatchResultViewState extends State<BatchResultView> {
 
   Future<void> _onSaveAll() async {
     final bool allAssociated = _expenses.every((e) => e.associatedTo != null);
-    final bool allCardsSelected = _expenses.every((e) => e.creditCard != null);
 
-    if (!allAssociated || !allCardsSelected) {
+    if (!allAssociated) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez associer chaque note à une entreprise et sélectionner une carte de crédit.')),
+        const SnackBar(content: Text('Veuillez associer chaque note à une entreprise.')),
       );
       return;
     }
@@ -46,7 +45,7 @@ class _BatchResultViewState extends State<BatchResultView> {
   @override
   Widget build(BuildContext context) {
     final NumberFormat currencyFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
-    final bool allValidated = _expenses.every((e) => e.associatedTo != null && e.creditCard != null);
+    final bool allValidated = _expenses.every((e) => e.associatedTo != null);
 
     return Scaffold(
       appBar: AppBar(
@@ -59,7 +58,6 @@ class _BatchResultViewState extends State<BatchResultView> {
           final expense = _expenses[index];
           final bool isDataComplete = expense.date != null && expense.amount != null && expense.company != null;
           final bool isAssociated = expense.associatedTo != null;
-          final bool isCardSelected = expense.creditCard != null;
 
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -76,17 +74,13 @@ class _BatchResultViewState extends State<BatchResultView> {
                     isAssociated ? "Associé à : ${expense.associatedTo}" : "Aucune société associée",
                     style: TextStyle(color: isAssociated ? Colors.green : Colors.red, fontSize: 12),
                   ),
-                  Text(
-                    isCardSelected ? "Carte : ${expense.creditCard}" : "Aucune carte sélectionnée",
-                    style: TextStyle(color: isCardSelected ? Colors.blueAccent : Colors.red, fontSize: 12),
-                  ),
                 ],
               ),
               trailing: Text(
                 expense.amount != null ? currencyFormat.format(expense.amount) : 'N/A',
                 style: TextStyle(fontWeight: FontWeight.bold, color: isDataComplete ? Colors.blue : Colors.red, fontSize: 16),
               ),
-              isThreeLine: true,
+              isThreeLine: false,
               onTap: () async {
                 final updatedExpense = await Navigator.of(context).push<ExpenseModel>(
                   MaterialPageRoute(

@@ -1,4 +1,3 @@
-
 const List<String> kCompanyList = [
   'Natecia',
   'Clinique du Grand Avignon',
@@ -14,3 +13,13 @@ const List<String> kCompanyList = [
   'Académie',
   'Autre',
 ];
+
+const Map<String, double> kMileageRates = {
+  '3 CV et moins': 0.529,
+  '4 CV': 0.606,
+  '5 CV': 0.636,
+  '6 CV': 0.665,
+  '7 CV et plus': 0.697,
+};
+
+final List<String> kCvOptions = kMileageRates.keys.toList();

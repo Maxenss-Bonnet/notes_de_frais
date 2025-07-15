@@ -50,7 +50,10 @@ class BackgroundTaskService {
 
     final sender = dotenv.env['SENDER_EMAIL'];
     final password = dotenv.env['SENDER_APP_PASSWORD'];
-    final recipient = await _settingsService.getRecipientEmail();
+
+    final recipientInfo = await _settingsService.getRecipientInfo();
+    final recipient = recipientInfo['email']!;
+
     final employeeInfo = await _settingsService.getEmployeeInfo();
     final employeeEmail = employeeInfo['email'];
     final employeeName = "${employeeInfo['firstName']} ${employeeInfo['lastName']}";
@@ -113,11 +116,9 @@ class BackgroundTaskService {
     while (_queueService.getNextTask() != null) {
       final task = _queueService.getNextTask()!;
       try {
-        // La version employé n'envoie que des lots
         if (task.type == TaskType.sendExpenseBatch) {
           await _executeBatchTaskAndCleanup(task, initialTaskCount, completedCount);
         } else {
-          // Gérer les autres types de tâches ou les ignorer
           print("Type de tâche non supporté dans la version employé: ${task.type}");
         }
 

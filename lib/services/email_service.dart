@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 
 class EmailService {
 
-  String _formatHtmlBody(ExpenseModel expense) {
+  String _formatHtmlBody(ExpenseModel expense, String employeeName) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final numberFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
 
@@ -16,7 +16,6 @@ class EmailService {
     final vat = expense.vat != null ? numberFormat.format(expense.vat) : 'N/A';
     final company = expense.company ?? 'N/A';
     final associatedTo = expense.associatedTo ?? 'N/A';
-    final creditCard = expense.creditCard ?? 'N/A';
 
     return '''
     <!DOCTYPE html>
@@ -34,7 +33,7 @@ class EmailService {
     </head>
     <body>
       <div class="container">
-        <h2>Nouvelle note de frais</h2>
+        <h2>Nouvelle note de frais de ${employeeName}</h2>
         <p>Une nouvelle note de frais a été soumise pour l'entreprise <strong>$associatedTo</strong>.</p>
         <table>
           <tr>
@@ -53,10 +52,6 @@ class EmailService {
             <th>Montant TVA</th>
             <td>$vat</td>
           </tr>
-          <tr>
-            <th>Payé avec</th>
-            <td>$creditCard</td>
-          </tr>
         </table>
         <p class="footer">E-mail généré automatiquement par l'application Notes de Frais.</p>
       </div>
@@ -67,48 +62,6 @@ class EmailService {
 
   String _sanitizeFileName(String input) {
     return input.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-  }
-
-  Future<void> sendExpenseEmail({
-    required ExpenseModel expense,
-    required String recipient,
-    required String sender,
-    required String password,
-  }) async {
-    final dateFormat = DateFormat('yyyy-MM-dd');
-    final date = expense.date != null ? dateFormat.format(expense.date!) : 'Ticket';
-    final subject = 'Note de frais - ${expense.company ?? 'N/A'} - $date';
-    final body = _formatHtmlBody(expense);
-    final smtpServer = gmail(sender, password);
-
-    final List<Attachment> attachments = [];
-    final companyName = _sanitizeFileName(expense.company ?? 'Inconnu');
-    final dateString = expense.date != null ? DateFormat('yyyy-MM-dd').format(expense.date!) : 'Date_Inconnue';
-    int i = 1;
-    for (final path in expense.processedImagePaths) {
-      final file = File(path);
-      final extension = p.extension(path);
-      final newFileName = '${dateString}_${companyName}_${i++}$extension';
-      attachments.add(FileAttachment(file, fileName: newFileName));
-    }
-
-    final message = Message()
-      ..from = Address(sender, 'Notes de Frais App')
-      ..recipients.add(recipient)
-      ..subject = subject
-      ..html = body
-      ..attachments = attachments;
-
-    try {
-      final sendReport = await send(message, smtpServer);
-      print('Message envoyé: ' + sendReport.toString());
-    } on MailerException catch (e) {
-      print('Le message n\'a pas pu être envoyé.');
-      for (var p in e.problems) {
-        print('Problème: ${p.code}: ${p.msg}');
-      }
-      rethrow;
-    }
   }
 
   String _formatBatchHtmlBody(List<ExpenseModel> expenses, String employeeName) {
@@ -123,15 +76,16 @@ class EmailService {
       final vat = expense.vat != null ? numberFormat.format(expense.vat) : 'N/A';
       final company = expense.company ?? 'N/A';
       final associatedTo = expense.associatedTo ?? 'N/A';
-      final creditCard = expense.creditCard ?? 'N/A';
+      final type = expense.category == 'Frais Kilométriques' ? 'Indemnité Kilométrique' : 'Note de Frais';
+
       return '''
         <tr>
           <td>$date</td>
+          <td>$type</td>
           <td>$company</td>
           <td>$associatedTo</td>
           <td>$amount</td>
           <td>$vat</td>
-          <td>$creditCard</td>
         </tr>
       ''';
     }).join('');
@@ -159,11 +113,11 @@ class EmailService {
           <thead>
             <tr>
               <th>Date</th>
-              <th>Fournisseur</th>
+              <th>Type</th>
+              <th>Fournisseur / Motif</th>
               <th>Associé à</th>
               <th>Montant TTC</th>
               <th>Montant TVA</th>
-              <th>Payé avec</th>
             </tr>
           </thead>
           <tbody>
@@ -185,6 +139,8 @@ class EmailService {
     final List<Attachment> attachments = [];
     int fileCounter = 1;
     for (final expense in expenses) {
+      if(expense.processedImagePaths.isEmpty) continue; // Ne pas créer de pièce jointe pour les notes kilométriques
+
       final companyName = _sanitizeFileName(expense.company ?? 'Inconnu');
       final dateString = expense.date != null ? DateFormat('yyyy-MM-dd').format(expense.date!) : 'Date_Inconnue';
 

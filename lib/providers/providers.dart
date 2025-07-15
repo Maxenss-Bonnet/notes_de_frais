@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:notes_de_frais/models/expense_model.dart';
+import 'package:hive/hive.dart';
 import 'package:notes_de_frais/models/task_model.dart';
 import 'package:notes_de_frais/services/background_task_service.dart';
 import 'package:notes_de_frais/services/statistics_service.dart';
@@ -11,30 +11,38 @@ final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
 });
 
-final statisticsServiceProvider = Provider<StatisticsService>((ref) {
-  ref.watch(storageServiceProvider);
-  return StatisticsService();
-});
+// --- Fournisseurs de Données de Base ---
 
-
-// --- Données ---
-
-final expensesStreamProvider = StreamProvider.autoDispose<List<ExpenseModel>>((ref) {
+// Ce provider fournit un flux direct des événements de la base de données.
+// Il sert de "déclencheur" pour les autres providers.
+final expenseBoxStreamProvider = StreamProvider.autoDispose<BoxEvent>((ref) {
   final storageService = ref.watch(storageServiceProvider);
-  return storageService.getExpenseBox().watch().map((event) {
-    return storageService.getExpenseBox().values.where((e) => !e.isInTrash).toList();
-  });
+  return storageService.getExpenseBox().watch();
 });
 
 
-// --- Statistiques (optimisé) ---
+// --- Fournisseurs de Données Calculées ---
 
+// Provider pour le compteur de notes non envoyées.
+final unsentExpensesCountProvider = StateProvider<int>((ref) {
+  // Il écoute le flux de la base de données. Chaque fois qu'un événement se produit,
+  // ce provider est reconstruit.
+  ref.watch(expenseBoxStreamProvider);
+  // En se reconstruisant, il récupère la valeur la plus récente du service de stockage.
+  return ref.watch(storageServiceProvider).getUnsentExpensesCount();
+});
+
+
+// --- Fournisseurs de Statistiques ---
+
+// Ce provider écoute également le flux de la base de données.
 final statisticsProvider = Provider((ref) {
-  ref.watch(expensesStreamProvider);
+  ref.watch(expenseBoxStreamProvider);
   return StatisticsService();
 });
 
-// Providers granulaires pour optimiser les rebuilds
+// Ces providers granulaires sont reconstruits automatiquement
+// car ils dépendent de 'statisticsProvider', qui est lui-même mis à jour par le stream.
 final expensesThisWeekCountProvider = Provider<int>((ref) {
   return ref.watch(statisticsProvider).getExpensesThisWeekCount();
 });

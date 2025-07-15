@@ -7,6 +7,7 @@ import 'package:notes_de_frais/models/task_model.dart';
 import 'package:notes_de_frais/providers/providers.dart';
 import 'package:notes_de_frais/services/storage_service.dart';
 import 'package:notes_de_frais/services/task_queue_service.dart';
+import 'package:notes_de_frais/views/add_mileage_expense_view.dart';
 import 'package:notes_de_frais/views/trash_view.dart';
 import 'package:notes_de_frais/views/validation_view.dart';
 
@@ -20,9 +21,8 @@ class HistoryView extends ConsumerStatefulWidget {
 class _HistoryViewState extends ConsumerState<HistoryView> {
   final StorageService _storageService = StorageService();
   final TaskQueueService _taskQueueService = TaskQueueService();
-  final Set<int> _selectedKeys = <int>{};
+  final Set<dynamic> _selectedKeys = <dynamic>{};
 
-  // Le reste de la logique de pagination reste inchangé
   final List<ExpenseModel> _expenses = [];
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
@@ -47,13 +47,26 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
     super.dispose();
   }
 
+  Future<void> _refreshHistory() async {
+    setState(() {
+      _page = 1;
+      _expenses.clear();
+      _selectedKeys.clear();
+      _hasMore = true;
+      _isLoading = false;
+    });
+    await _loadMoreExpenses();
+  }
+
   Future<void> _loadMoreExpenses() async {
     if (!_hasMore || _isLoading) return;
     if (!mounted) return;
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 500));
     final newExpenses = _storageService.getExpenses(page: _page, limit: _limit);
-    if (newExpenses.length < _limit) _hasMore = false;
+    if (newExpenses.length < _limit) {
+      _hasMore = false;
+    }
     if (mounted) {
       setState(() {
         _expenses.addAll(newExpenses);
@@ -83,7 +96,6 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
     final task = TaskModel(type: TaskType.sendExpenseBatch, payload: selectedExpenses);
     _taskQueueService.enqueueTask(task);
 
-    // Déclencher le traitement et afficher la progression
     ref.read(backgroundTaskServiceProvider).processQueue();
     _showProgressDialog();
 
@@ -95,10 +107,10 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        // J'utilise le même widget de progression que vous aviez dans ValidationView
+        // La boîte de dialogue notifie la page parente de rafraîchir via le .then()
         return const _ProgressDialogAnimator();
       },
-    );
+    ).then((_) => _refreshHistory()); // Rafraîchir l'historique après la fermeture de la pop-up
   }
 
   @override
@@ -108,58 +120,139 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedKeys.isEmpty ? 'Historique' : '${_selectedKeys.length} sélectionnée(s)'),
-        actions: [/* ... IconButton Corbeille ... */],
+        title: Text(_selectedKeys.isEmpty ? 'Historique des notes' : '${_selectedKeys.length} sélectionnée(s)'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Corbeille',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const TrashView()),
+              ).then((_) => _refreshHistory());
+            },
+          )
+        ],
       ),
       body: _expenses.isEmpty && !_isLoading
-          ? const Center(child: Text('Aucune note de frais dans l\'historique.'))
-          : ListView.builder(
-        controller: _scrollController,
-        itemCount: _expenses.length + (_hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _expenses.length) return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
+          ? const Center(
+        child: Text(
+          'Aucune note de frais dans l\'historique.',
+          style: TextStyle(fontSize: 16),
+        ),
+      )
+          : RefreshIndicator(
+        onRefresh: _refreshHistory,
+        child: ListView.builder(
+          controller: _scrollController,
+          itemCount: _expenses.length + (_hasMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == _expenses.length) {
+              return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(),
+                  ));
+            }
 
-          final expense = _expenses[index];
-          final bool isSelected = _selectedKeys.contains(expense.key);
+            final expense = _expenses[index];
+            final bool isSelected = _selectedKeys.contains(expense.key);
+            final bool isMileage = expense.category == 'Frais Kilométriques';
 
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: expense.isSent ? Colors.grey.shade300 : Colors.white,
-            child: ListTile(
-              leading: Checkbox(
-                value: isSelected,
-                onChanged: expense.isSent ? null : (bool? value) => _onSelectionChanged(value, expense),
-              ),
-              title: Text(expense.company ?? 'Fournisseur inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Associé à : ${expense.associatedTo ?? 'N/A'}\n${dateFormat.format(expense.date!)}'),
-              trailing: expense.isSent
-                  ? const Icon(Icons.check_circle, color: Colors.green)
-                  : Text(currencyFormat.format(expense.amount), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-              isThreeLine: true,
-              onTap: expense.isSent ? null : () async {
-                final result = await Navigator.of(context).push<ExpenseModel>(
-                  MaterialPageRoute(builder: (context) => ValidationView(expense: expense, isInBatchMode: true)),
-                );
-                if (result != null && mounted) {
+            return Dismissible(
+              key: Key(expense.key.toString()),
+              direction: DismissDirection.endToStart,
+              onDismissed: (direction) {
+                _storageService.moveToTrash(expense.key);
+                if (mounted) {
                   setState(() {
-                    _expenses[index] = result;
+                    _expenses.removeAt(index);
                   });
                 }
               },
-            ),
-          );
-        },
+              background: Container(
+                color: Colors.red,
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: const Icon(Icons.delete, color: Colors.white),
+              ),
+              child: Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: expense.isSent ? Colors.grey.shade200 : Colors.white,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.fromLTRB(4.0, 8.0, 16.0, 8.0),
+                  leading: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Checkbox(
+                        value: isSelected,
+                        onChanged: expense.isSent ? null : (bool? value) => _onSelectionChanged(value, expense),
+                      ),
+                      Icon(isMileage ? Icons.directions_car_outlined : Icons.receipt_long_outlined),
+                      const SizedBox(width: 4),
+                    ],
+                  ),
+                  title: Text(expense.company ?? 'Motif ou Fournisseur inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                      '${expense.date != null ? dateFormat.format(expense.date!) : 'Date inconnue'}\nAssocié à : ${expense.associatedTo ?? 'N/A'}'),
+                  trailing: expense.isSent
+                      ? const Tooltip(message: 'Envoyée', child: Icon(Icons.check_circle, color: Colors.green))
+                      : Text(
+                    expense.amount != null ? currencyFormat.format(expense.amount) : 'N/A',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                      fontSize: 16,
+                    ),
+                  ),
+                  isThreeLine: true,
+                  onTap: expense.isSent
+                      ? null
+                      : () async {
+                    final result = await Navigator.of(context).push<ExpenseModel>(
+                      MaterialPageRoute(
+                        builder: (context) => ValidationView(expense: expense, isInBatchMode: true),
+                      ),
+                    );
+                    if (result != null && mounted) {
+                      setState(() {
+                        _expenses[index] = result;
+                      });
+                    }
+                  },
+                ),
+              ),
+            );
+          },
+        ),
       ),
-      floatingActionButton: _selectedKeys.isNotEmpty ? FloatingActionButton.extended(
-        onPressed: _sendSelectedExpenses,
-        label: const Text('Envoyer la sélection'),
-        icon: const Icon(Icons.send),
-      ) : null,
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_selectedKeys.isNotEmpty)
+            FloatingActionButton.extended(
+              onPressed: _sendSelectedExpenses,
+              label: const Text('Envoyer la sélection'),
+              icon: const Icon(Icons.send),
+              heroTag: 'send',
+            ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const AddMileageExpenseView()),
+              ).then((_) => _refreshHistory());
+            },
+            label: const Text('Note kilométrique'),
+            icon: const Icon(Icons.add_road_outlined),
+            heroTag: 'add_mileage',
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+          ),
+        ],
+      ),
     );
   }
 }
 
-// Ajouter le widget _ProgressDialogAnimator ici, copié depuis l'ancienne ValidationView
 class _ProgressDialogAnimator extends ConsumerStatefulWidget {
   const _ProgressDialogAnimator();
 
@@ -187,10 +280,14 @@ class __ProgressDialogAnimatorState extends ConsumerState<_ProgressDialogAnimato
 
   String _getDialogTitle(TaskExecutionStatus status) {
     switch (status) {
-      case TaskExecutionStatus.processing: return 'Envoi en cours...';
-      case TaskExecutionStatus.success: return 'Terminé !';
-      case TaskExecutionStatus.error: return 'Erreur';
-      default: return 'En attente';
+      case TaskExecutionStatus.processing:
+        return 'Envoi en cours...';
+      case TaskExecutionStatus.success:
+        return 'Terminé !';
+      case TaskExecutionStatus.error:
+        return 'Erreur';
+      default:
+        return 'En attente';
     }
   }
 
@@ -202,7 +299,7 @@ class __ProgressDialogAnimatorState extends ConsumerState<_ProgressDialogAnimato
           Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted) {
               Navigator.of(context).pop();
-              // Optionnel: rafraîchir la liste historique
+              // Le .then() sur le showDialog s'occupera du rafraîchissement
             }
           });
         });
@@ -210,9 +307,7 @@ class __ProgressDialogAnimatorState extends ConsumerState<_ProgressDialogAnimato
         if (next.progress > _lastProgressTarget) {
           final begin = _animation.value;
           final end = next.progress;
-          _animation = Tween<double>(begin: begin, end: end).animate(
-              CurvedAnimation(parent: _controller, curve: Curves.linear)
-          );
+          _animation = Tween<double>(begin: begin, end: end).animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
           _controller.duration = const Duration(seconds: 2);
           _controller.forward(from: 0.0);
           _lastProgressTarget = end;

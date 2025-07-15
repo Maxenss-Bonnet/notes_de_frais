@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:notes_de_frais/services/settings_service.dart';
+import 'package:notes_de_frais/utils/constants.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -12,15 +13,20 @@ class _SettingsViewState extends State<SettingsView> {
   final _formKey = GlobalKey<FormState>();
   final SettingsService _settingsService = SettingsService();
   late TextEditingController _recipientEmailController;
+  late TextEditingController _recipientFirstNameController;
+  late TextEditingController _recipientLastNameController;
   late TextEditingController _employeeEmailController;
   late TextEditingController _employeeFirstNameController;
   late TextEditingController _employeeLastNameController;
+  String? _selectedCv;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _recipientEmailController = TextEditingController();
+    _recipientFirstNameController = TextEditingController();
+    _recipientLastNameController = TextEditingController();
     _employeeEmailController = TextEditingController();
     _employeeFirstNameController = TextEditingController();
     _employeeLastNameController = TextEditingController();
@@ -29,18 +35,28 @@ class _SettingsViewState extends State<SettingsView> {
 
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
-    final recipientEmail = await _settingsService.getRecipientEmail();
+    final recipientInfo = await _settingsService.getRecipientInfo();
     final employeeInfo = await _settingsService.getEmployeeInfo();
-    _recipientEmailController.text = recipientEmail;
+
+    _recipientEmailController.text = recipientInfo['email']!;
+    _recipientFirstNameController.text = recipientInfo['firstName']!;
+    _recipientLastNameController.text = recipientInfo['lastName']!;
+
     _employeeEmailController.text = employeeInfo['email']!;
     _employeeFirstNameController.text = employeeInfo['firstName']!;
     _employeeLastNameController.text = employeeInfo['lastName']!;
+    final savedCv = employeeInfo['fiscalHorsepower'];
+    if (savedCv != null && kCvOptions.contains(savedCv)) {
+      _selectedCv = savedCv;
+    }
     setState(() => _isLoading = false);
   }
 
   @override
   void dispose() {
     _recipientEmailController.dispose();
+    _recipientFirstNameController.dispose();
+    _recipientLastNameController.dispose();
     _employeeEmailController.dispose();
     _employeeFirstNameController.dispose();
     _employeeLastNameController.dispose();
@@ -49,11 +65,16 @@ class _SettingsViewState extends State<SettingsView> {
 
   Future<void> _saveSettings() async {
     if (_formKey.currentState!.validate()) {
-      await _settingsService.saveRecipientEmail(_recipientEmailController.text);
+      await _settingsService.saveRecipientInfo(
+        email: _recipientEmailController.text,
+        firstName: _recipientFirstNameController.text,
+        lastName: _recipientLastNameController.text,
+      );
       await _settingsService.saveEmployeeInfo(
         email: _employeeEmailController.text,
         firstName: _employeeFirstNameController.text,
         lastName: _employeeLastNameController.text,
+        fiscalHorsepower: _selectedCv,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -98,12 +119,34 @@ class _SettingsViewState extends State<SettingsView> {
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) => (value == null || !value.contains('@')) ? 'Veuillez entrer une adresse e-mail valide.' : null,
               ),
+              const SizedBox(height: 24),
+              DropdownButtonFormField<String>(
+                value: _selectedCv,
+                onChanged: (value) => setState(() => _selectedCv = value),
+                items: kCvOptions.map((cv) => DropdownMenuItem(value: cv, child: Text(cv))).toList(),
+                decoration: const InputDecoration(
+                  labelText: 'Puissance Fiscale (CV) du véhicule',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.directions_car_outlined),
+                ),
+                validator: (value) => value == null ? 'Veuillez sélectionner une puissance fiscale.' : null,
+              ),
               const SizedBox(height: 32),
-              Text('E-mail du destinataire (comptabilité)', style: Theme.of(context).textTheme.titleLarge),
+              Text('Informations du destinataire (comptabilité)', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _recipientFirstNameController,
+                decoration: const InputDecoration(labelText: 'Prénom du destinataire', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_pin_outlined)),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _recipientLastNameController,
+                decoration: const InputDecoration(labelText: 'Nom du destinataire', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_pin_outlined)),
+              ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _recipientEmailController,
-                decoration: const InputDecoration(labelText: 'Adresse e-mail', border: OutlineInputBorder(), prefixIcon: Icon(Icons.email_outlined)),
+                decoration: const InputDecoration(labelText: 'Adresse e-mail du destinataire', border: OutlineInputBorder(), prefixIcon: Icon(Icons.email_outlined)),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) => (value == null || !value.contains('@')) ? 'Veuillez entrer une adresse e-mail valide.' : null,
               ),

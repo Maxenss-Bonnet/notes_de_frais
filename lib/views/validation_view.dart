@@ -19,7 +19,6 @@ class _ValidationViewState extends State<ValidationView> {
   final ExpenseController _controller = ExpenseController();
   late ExpenseModel _editableExpense;
   String? _selectedCompany;
-  String? _selectedCard;
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
 
   bool _isEditing = false;
@@ -35,11 +34,10 @@ class _ValidationViewState extends State<ValidationView> {
     super.initState();
     _editableExpense = widget.expense;
     _selectedCompany = _editableExpense.associatedTo;
-    _selectedCard = _editableExpense.creditCard;
 
     _dateController = TextEditingController(text: _editableExpense.date != null ? _dateFormat.format(_editableExpense.date!) : '');
-    _amountController = TextEditingController(text: _editableExpense.amount?.toString() ?? '');
-    _vatController = TextEditingController(text: _editableExpense.vat?.toString() ?? '');
+    _amountController = TextEditingController(text: _editableExpense.amount?.toStringAsFixed(2) ?? '');
+    _vatController = TextEditingController(text: _editableExpense.vat?.toString() ?? '0.0');
     _companyController = TextEditingController(text: _editableExpense.company ?? '');
     _categoryController = TextEditingController(text: _editableExpense.category ?? '');
   }
@@ -57,20 +55,14 @@ class _ValidationViewState extends State<ValidationView> {
   void _updateExpenseFromControllers() {
     if (_formKey.currentState!.validate()) {
       _editableExpense.date = _dateFormat.tryParse(_dateController.text);
-      _editableExpense.amount = double.tryParse(_amountController.text);
-      _editableExpense.vat = double.tryParse(_vatController.text);
+      _editableExpense.amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
+      _editableExpense.vat = double.tryParse(_vatController.text.replaceAll(',', '.'));
       _editableExpense.company = _companyController.text;
       _editableExpense.category = _categoryController.text;
     }
   }
 
   bool _validateInputs() {
-    if (_selectedCard == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner une carte de crédit.')),
-      );
-      return false;
-    }
     if (_selectedCompany == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez sélectionner une entreprise.')),
@@ -87,7 +79,6 @@ class _ValidationViewState extends State<ValidationView> {
       _updateExpenseFromControllers();
     }
     _editableExpense.associatedTo = _selectedCompany;
-    _editableExpense.creditCard = _selectedCard;
     Navigator.of(context).pop(_editableExpense);
   }
 
@@ -98,7 +89,6 @@ class _ValidationViewState extends State<ValidationView> {
       _updateExpenseFromControllers();
     }
     _editableExpense.associatedTo = _selectedCompany;
-    _editableExpense.creditCard = _selectedCard;
 
     await _controller.saveExpenseLocally(_editableExpense);
 
@@ -112,25 +102,28 @@ class _ValidationViewState extends State<ValidationView> {
 
   @override
   Widget build(BuildContext context) {
+    bool isMileageExpense = _editableExpense.category == 'Frais Kilométriques';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Détail de la note'),
+        title: Text(isMileageExpense ? 'Note Kilométrique' : 'Détail de la note'),
         leading: widget.isInBatchMode
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).pop(_editableExpense))
             : null,
         actions: [
-          IconButton(
-            icon: Icon(_isEditing ? Icons.done : Icons.edit),
-            tooltip: _isEditing ? 'Terminer' : 'Modifier',
-            onPressed: () {
-              setState(() {
-                if (_isEditing) {
-                  _updateExpenseFromControllers();
-                }
-                _isEditing = !_isEditing;
-              });
-            },
-          )
+          if (!isMileageExpense)
+            IconButton(
+              icon: Icon(_isEditing ? Icons.done : Icons.edit),
+              tooltip: _isEditing ? 'Terminer' : 'Modifier',
+              onPressed: () {
+                setState(() {
+                  if (_isEditing) {
+                    _updateExpenseFromControllers();
+                  }
+                  _isEditing = !_isEditing;
+                });
+              },
+            )
         ],
       ),
       body: SingleChildScrollView(
@@ -161,14 +154,14 @@ class _ValidationViewState extends State<ValidationView> {
               const SizedBox(height: 24),
 
               _buildEditableDateField(_editableExpense.dateConfidence),
-              _buildEditableTextField(_amountController, 'Montant TTC', _editableExpense.amountConfidence, const TextInputType.numberWithOptions(decimal: true)),
-              _buildEditableTextField(_vatController, 'TVA', _editableExpense.vatConfidence, const TextInputType.numberWithOptions(decimal: true)),
-              _buildEditableTextField(_companyController, 'Entreprise (Marchand)', _editableExpense.companyConfidence),
-              _buildEditableTextField(_categoryController, 'Catégorie', _editableExpense.categoryConfidence),
+              _buildEditableTextField(_amountController, 'Montant', _editableExpense.amountConfidence, const TextInputType.numberWithOptions(decimal: true)),
+              if (!isMileageExpense)
+                _buildEditableTextField(_vatController, 'TVA', _editableExpense.vatConfidence, const TextInputType.numberWithOptions(decimal: true)),
+              _buildEditableTextField(_companyController, isMileageExpense ? 'Motif du déplacement' : 'Entreprise (Marchand)', _editableExpense.companyConfidence),
+              if (!isMileageExpense)
+                _buildEditableTextField(_categoryController, 'Catégorie', _editableExpense.categoryConfidence),
 
               const SizedBox(height: 24),
-              _buildCreditCardSelection(),
-              const SizedBox(height: 16),
               _buildCompanyDropdown(),
             ],
           ),
@@ -184,53 +177,17 @@ class _ValidationViewState extends State<ValidationView> {
               backgroundColor: widget.isInBatchMode ? Colors.blue : Colors.green,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              textStyle: const TextStyle(fontSize: 18)
-          ),
+              textStyle: const TextStyle(fontSize: 18)),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
-  Widget _buildCreditCardSelection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Payé avec la carte :', style: Theme.of(context).textTheme.titleMedium),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Expanded(
-              child: RadioListTile<String>(
-                title: const Text('American Express'),
-                value: 'American Express',
-                groupValue: _selectedCard,
-                onChanged: (value) => setState(() => _selectedCard = value),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-            Expanded(
-              child: RadioListTile<String>(
-                title: const Text('Personnel'),
-                value: 'Personnel',
-                groupValue: _selectedCard,
-                onChanged: (value) => setState(() => _selectedCard = value),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-
   Widget _buildConfidenceIndicator(double? confidence) {
     if (confidence == null) return const SizedBox.shrink();
-
     Color color;
     IconData icon;
-
     if (confidence >= 0.8) {
       color = Colors.green;
       icon = Icons.check_circle;
@@ -241,7 +198,6 @@ class _ValidationViewState extends State<ValidationView> {
       color = Colors.red;
       icon = Icons.error;
     }
-
     return Padding(
       padding: const EdgeInsets.only(left: 8.0),
       child: Icon(icon, color: color, size: 20),
@@ -263,6 +219,11 @@ class _ValidationViewState extends State<ValidationView> {
         validator: (value) {
           if (value == null || value.isEmpty) {
             return 'Ce champ ne peut pas être vide';
+          }
+          if (keyboardType?.toString().contains('number') ?? false) {
+            if (double.tryParse(value.replaceAll(',', '.')) == null) {
+              return 'Veuillez entrer un nombre valide.';
+            }
           }
           return null;
         },
@@ -321,7 +282,8 @@ class _ValidationViewState extends State<ValidationView> {
               _buildConfidenceIndicator(confidence),
             ],
           ),
-          Flexible(child: Text(value, style: Theme.of(context).textTheme.bodyLarge, textAlign: TextAlign.right,)),
+          Flexible(
+              child: Text(value, style: Theme.of(context).textTheme.bodyLarge, textAlign: TextAlign.right)),
         ],
       ),
     );
@@ -338,6 +300,7 @@ class _ValidationViewState extends State<ValidationView> {
       items: kCompanyList.map<DropdownMenuItem<String>>((String value) {
         return DropdownMenuItem<String>(value: value, child: Text(value));
       }).toList(),
+      validator: (value) => value == null ? 'Veuillez sélectionner une entreprise' : null,
     );
   }
 }

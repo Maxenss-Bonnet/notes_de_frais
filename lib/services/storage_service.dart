@@ -8,7 +8,6 @@ class StorageService {
     await _expenseBox.add(expense);
   }
 
-  // Nouvelle méthode pour la pagination
   List<ExpenseModel> getExpenses({int page = 1, int limit = 15}) {
     final allExpenses = _expenseBox.values.where((e) => !e.isInTrash).toList().reversed.toList();
     final startIndex = (page - 1) * limit;
@@ -24,7 +23,11 @@ class StorageService {
 
   int get totalExpensesCount => _expenseBox.values.where((e) => !e.isInTrash).length;
 
-  Future<void> moveToTrash(int key) async {
+  int getUnsentExpensesCount() {
+    return _expenseBox.values.where((e) => !e.isInTrash && !e.isSent).length;
+  }
+
+  Future<void> moveToTrash(dynamic key) async {
     final expense = _expenseBox.get(key);
     if (expense != null) {
       expense.isInTrash = true;
@@ -32,7 +35,7 @@ class StorageService {
     }
   }
 
-  Future<void> restoreFromTrash(int key) async {
+  Future<void> restoreFromTrash(dynamic key) async {
     final expense = _expenseBox.get(key);
     if (expense != null) {
       expense.isInTrash = false;
@@ -40,7 +43,7 @@ class StorageService {
     }
   }
 
-  Future<void> permanentlyDelete(int key) async {
+  Future<void> permanentlyDelete(dynamic key) async {
     await _expenseBox.delete(key);
   }
 
