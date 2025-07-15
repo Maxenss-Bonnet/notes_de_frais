@@ -127,7 +127,7 @@ class _CameraViewState extends ConsumerState<CameraView> with WidgetsBindingObse
             child: badges.Badge(
               showBadge: unsentCount > 0,
               badgeContent: Text('$unsentCount', style: const TextStyle(color: Colors.white)),
-              position: badges.BadgePosition.topEnd(top: 0, end: 0),
+              position: badges.BadgePosition.topEnd(top: -8, end: -5),
               child: AnimatedIconButton(
                   icon: Icons.history,
                   tooltip: 'Historique',
