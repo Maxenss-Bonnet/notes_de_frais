@@ -1,35 +1,26 @@
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:notes_de_frais/controllers/expense_controller.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
-import 'package:notes_de_frais/models/task_model.dart';
-import 'package:notes_de_frais/providers/providers.dart';
-import 'package:notes_de_frais/services/statistics_service.dart';
 import 'package:notes_de_frais/utils/constants.dart';
-import 'package:notes_de_frais/widgets/animated_stat_widget.dart';
-import 'package:shimmer/shimmer.dart';
 
-class ValidationView extends ConsumerStatefulWidget {
+class ValidationView extends StatefulWidget {
   final ExpenseModel expense;
   final bool isInBatchMode;
 
   const ValidationView({super.key, required this.expense, this.isInBatchMode = false});
 
   @override
-  ConsumerState<ValidationView> createState() => _ValidationViewState();
+  State<ValidationView> createState() => _ValidationViewState();
 }
 
-class _ValidationViewState extends ConsumerState<ValidationView> {
+class _ValidationViewState extends State<ValidationView> {
   final ExpenseController _controller = ExpenseController();
-  final StatisticsService _statsService = StatisticsService();
   late ExpenseModel _editableExpense;
   String? _selectedCompany;
   String? _selectedCard;
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
-  OverlayEntry? _overlayEntry;
 
   bool _isEditing = false;
   final _formKey = GlobalKey<FormState>();
@@ -100,7 +91,7 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
     Navigator.of(context).pop(_editableExpense);
   }
 
-  Future<void> _onValidateAndSend() async {
+  Future<void> _onSaveAndClose() async {
     if (!_validateInputs()) return;
 
     if (_isEditing) {
@@ -109,96 +100,14 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
     _editableExpense.associatedTo = _selectedCompany;
     _editableExpense.creditCard = _selectedCard;
 
-    final beforeVat = _statsService.getTotalVatSaved();
-    final beforeWeeklyVat = _statsService.getVatSavedThisWeek();
-    final beforeCount = _statsService.getExpensesThisWeekCount();
-
     await _controller.saveExpenseLocally(_editableExpense);
-    _controller.performBackgroundTasks(_editableExpense);
-
-    final afterVat = _statsService.getTotalVatSaved();
-    final afterWeeklyVat = _statsService.getVatSavedThisWeek();
-    final afterCount = _statsService.getExpensesThisWeekCount();
-
-    _showRewardOverlay(
-        beforeVat: beforeVat, afterVat: afterVat,
-        beforeWeeklyVat: beforeWeeklyVat, afterWeeklyVat: afterWeeklyVat,
-        beforeCount: beforeCount, afterCount: afterCount
-    );
-
-    await Future.delayed(const Duration(seconds: 4));
-    _hideRewardOverlay();
 
     if (mounted) {
-      _showProgressDialog();
-      ref.read(backgroundTaskServiceProvider).processQueue();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Note de frais enregistrée dans l\'historique.')),
+      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
-  }
-
-  void _showProgressDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const _ProgressDialogAnimator();
-      },
-    );
-  }
-
-  void _showRewardOverlay({
-    required double beforeVat, required double afterVat,
-    required double beforeWeeklyVat, required double afterWeeklyVat,
-    required int beforeCount, required int afterCount
-  }) {
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Material(
-        color: Colors.transparent,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-          child: Container(
-            color: Colors.black.withOpacity(0.6),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Shimmer.fromColors(
-                    baseColor: Colors.white,
-                    highlightColor: Colors.grey.shade400,
-                    period: const Duration(milliseconds: 2500),
-                    child: const Text(
-                      'Note de frais enregistrée !',
-                      style: TextStyle(fontSize: 28, color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Flexible(child: AnimatedStatWidget(title: 'Notes (semaine)', beginValue: beforeCount.toDouble(), endValue: afterCount.toDouble(), icon: Icons.note_add_outlined, color: Colors.orange)),
-                          Flexible(child: AnimatedStatWidget(title: 'TVA (semaine)', beginValue: beforeWeeklyVat, endValue: afterWeeklyVat, icon: Icons.calendar_today, color: Colors.purple, isCurrency: true)),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      AnimatedStatWidget(title: 'TVA (Total)', beginValue: beforeVat, endValue: afterVat, icon: Icons.shield_outlined, color: Colors.green, isCurrency: true),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  void _hideRewardOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
   }
 
   @override
@@ -268,9 +177,9 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
       floatingActionButton: Padding(
         padding: const EdgeInsets.all(8.0),
         child: ElevatedButton.icon(
-          onPressed: widget.isInBatchMode ? _onSaveForBatch : _onValidateAndSend,
-          icon: Icon(widget.isInBatchMode ? Icons.save : Icons.check_circle),
-          label: Text(widget.isInBatchMode ? 'Sauvegarder' : 'Valider et Envoyer'),
+          onPressed: widget.isInBatchMode ? _onSaveForBatch : _onSaveAndClose,
+          icon: Icon(widget.isInBatchMode ? Icons.save : Icons.check_circle_outline),
+          label: Text(widget.isInBatchMode ? 'Sauvegarder les modifications' : 'Sauvegarder et Fermer'),
           style: ElevatedButton.styleFrom(
               backgroundColor: widget.isInBatchMode ? Colors.blue : Colors.green,
               foregroundColor: Colors.white,
@@ -429,118 +338,6 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
       items: kCompanyList.map<DropdownMenuItem<String>>((String value) {
         return DropdownMenuItem<String>(value: value, child: Text(value));
       }).toList(),
-    );
-  }
-}
-
-class _ProgressDialogAnimator extends ConsumerStatefulWidget {
-  const _ProgressDialogAnimator();
-
-  @override
-  ConsumerState<_ProgressDialogAnimator> createState() => __ProgressDialogAnimatorState();
-}
-
-class __ProgressDialogAnimatorState extends ConsumerState<_ProgressDialogAnimator> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  double _lastProgressTarget = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this);
-    _animation = Tween<double>(begin: 0.0, end: 0.0).animate(_controller);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String _getDialogTitle(TaskExecutionStatus status) {
-    switch (status) {
-      case TaskExecutionStatus.processing: return 'Envoi en cours...';
-      case TaskExecutionStatus.success: return 'Terminé !';
-      case TaskExecutionStatus.error: return 'Erreur';
-      default: return 'En attente';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    ref.listen<TaskStatus>(taskStatusProvider, (previous, next) {
-      if (next.executionStatus == TaskExecutionStatus.success || next.executionStatus == TaskExecutionStatus.error) {
-        _controller.animateTo(1.0, duration: const Duration(milliseconds: 500), curve: Curves.easeIn).whenComplete(() {
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            if (mounted) {
-              Navigator.of(context).pop();
-              if (next.executionStatus == TaskExecutionStatus.success) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              }
-            }
-          });
-        });
-      } else {
-        if (next.progress > _lastProgressTarget) {
-          final begin = _animation.value;
-          final end = next.progress;
-          _animation = Tween<double>(begin: begin, end: end).animate(
-              CurvedAnimation(parent: _controller, curve: Curves.linear)
-          );
-          _controller.duration = const Duration(seconds: 2);
-          _controller.forward(from: 0.0);
-          _lastProgressTarget = end;
-        }
-      }
-    });
-
-    final status = ref.watch(taskStatusProvider);
-
-    Widget content;
-    switch (status.executionStatus) {
-      case TaskExecutionStatus.success:
-        content = Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 48),
-          const SizedBox(height: 20),
-          Text(status.message ?? 'Opération réussie.'),
-        ]);
-        break;
-      case TaskExecutionStatus.error:
-        content = Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.error, color: Colors.red, size: 48),
-          const SizedBox(height: 20),
-          Text(status.message ?? 'Une erreur est survenue.'),
-        ]);
-        break;
-      default:
-        content = AnimatedBuilder(
-          animation: _animation,
-          builder: (context, child) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LinearProgressIndicator(
-                  value: _animation.value,
-                  minHeight: 6,
-                ),
-                const SizedBox(height: 20),
-                Text(status.message ?? 'Veuillez patienter.'),
-                const SizedBox(height: 10),
-                if (status.stepMessage != null)
-                  Text(
-                    status.stepMessage!,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-              ],
-            );
-          },
-        );
-    }
-
-    return AlertDialog(
-      title: Text(_getDialogTitle(status.executionStatus)),
-      content: content,
     );
   }
 }

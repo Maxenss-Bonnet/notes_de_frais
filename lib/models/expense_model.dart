@@ -55,6 +55,9 @@ class ExpenseModel extends HiveObject {
   @HiveField(16)
   String? creditCard;
 
+  @HiveField(17)
+  bool isSent;
+
   ExpenseModel({
     required this.imagePath,
     this.processedImagePaths = const [],
@@ -73,5 +76,6 @@ class ExpenseModel extends HiveObject {
     this.categoryConfidence,
     this.normalizedMerchantNameConfidence,
     this.creditCard,
+    this.isSent = false,
   });
 }

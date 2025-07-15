@@ -11,35 +11,53 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   final _formKey = GlobalKey<FormState>();
   final SettingsService _settingsService = SettingsService();
-  late TextEditingController _emailController;
+  late TextEditingController _recipientEmailController;
+  late TextEditingController _employeeEmailController;
+  late TextEditingController _employeeFirstNameController;
+  late TextEditingController _employeeLastNameController;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController();
-    _loadEmail();
+    _recipientEmailController = TextEditingController();
+    _employeeEmailController = TextEditingController();
+    _employeeFirstNameController = TextEditingController();
+    _employeeLastNameController = TextEditingController();
+    _loadSettings();
   }
 
-  Future<void> _loadEmail() async {
+  Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
-    final email = await _settingsService.getRecipientEmail();
-    _emailController.text = email;
+    final recipientEmail = await _settingsService.getRecipientEmail();
+    final employeeInfo = await _settingsService.getEmployeeInfo();
+    _recipientEmailController.text = recipientEmail;
+    _employeeEmailController.text = employeeInfo['email']!;
+    _employeeFirstNameController.text = employeeInfo['firstName']!;
+    _employeeLastNameController.text = employeeInfo['lastName']!;
     setState(() => _isLoading = false);
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _recipientEmailController.dispose();
+    _employeeEmailController.dispose();
+    _employeeFirstNameController.dispose();
+    _employeeLastNameController.dispose();
     super.dispose();
   }
 
-  Future<void> _saveEmail() async {
+  Future<void> _saveSettings() async {
     if (_formKey.currentState!.validate()) {
-      await _settingsService.saveRecipientEmail(_emailController.text);
+      await _settingsService.saveRecipientEmail(_recipientEmailController.text);
+      await _settingsService.saveEmployeeInfo(
+        email: _employeeEmailController.text,
+        firstName: _employeeFirstNameController.text,
+        lastName: _employeeLastNameController.text,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Adresse e-mail enregistrée !')),
+          const SnackBar(content: Text('Paramètres enregistrés !')),
         );
         Navigator.of(context).pop();
       }
@@ -58,37 +76,40 @@ class _SettingsViewState extends State<SettingsView> {
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ListView(
             children: [
-              Text(
-                'E-mail du destinataire',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'L\'adresse e-mail à laquelle les notes de frais seront envoyées.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 24),
+              Text('Informations de l\'employé', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
               TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Adresse e-mail',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty || !value.contains('@')) {
-                    return 'Veuillez entrer une adresse e-mail valide.';
-                  }
-                  return null;
-                },
+                controller: _employeeFirstNameController,
+                decoration: const InputDecoration(labelText: 'Prénom', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_outline)),
+                validator: (value) => value == null || value.isEmpty ? 'Veuillez entrer un prénom.' : null,
               ),
-              const Spacer(),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _employeeLastNameController,
+                decoration: const InputDecoration(labelText: 'Nom', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_outline)),
+                validator: (value) => value == null || value.isEmpty ? 'Veuillez entrer un nom.' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _employeeEmailController,
+                decoration: const InputDecoration(labelText: 'Adresse e-mail personnelle', border: OutlineInputBorder(), prefixIcon: Icon(Icons.alternate_email)),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) => (value == null || !value.contains('@')) ? 'Veuillez entrer une adresse e-mail valide.' : null,
+              ),
+              const SizedBox(height: 32),
+              Text('E-mail du destinataire (comptabilité)', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _recipientEmailController,
+                decoration: const InputDecoration(labelText: 'Adresse e-mail', border: OutlineInputBorder(), prefixIcon: Icon(Icons.email_outlined)),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) => (value == null || !value.contains('@')) ? 'Veuillez entrer une adresse e-mail valide.' : null,
+              ),
+              const SizedBox(height: 32),
               ElevatedButton.icon(
-                onPressed: _saveEmail,
+                onPressed: _saveSettings,
                 icon: const Icon(Icons.save),
                 label: const Text('Enregistrer'),
                 style: ElevatedButton.styleFrom(

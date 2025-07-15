@@ -111,7 +111,7 @@ class EmailService {
     }
   }
 
-  String _formatBatchHtmlBody(List<ExpenseModel> expenses) {
+  String _formatBatchHtmlBody(List<ExpenseModel> expenses, String employeeName) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final numberFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
     final totalAmount = expenses.map((e) => e.amount ?? 0).fold(0.0, (a, b) => a + b);
@@ -142,9 +142,9 @@ class EmailService {
     <head>
       <style>
         body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-        .container { border: 1px solid #ddd; padding: 20px; border-radius: 8px; max-width: 600px; }
+        .container { border: 1px solid #ddd; padding: 20px; border-radius: 8px; max-width: 800px; margin: auto; }
         h2 { color: #005a9c; border-bottom: 2px solid #005a9c; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
         th { background-color: #f2f2f2; }
         .summary { margin-top: 20px; padding-top: 10px; border-top: 2px solid #333; text-align: right; font-weight: bold;}
@@ -153,8 +153,8 @@ class EmailService {
     </head>
     <body>
       <div class="container">
-        <h2>Rapport de notes de frais combiné</h2>
-        <p>Voici un résumé des dernières notes de frais soumises.</p>
+        <h2>Rapport de notes de frais - ${employeeName}</h2>
+        <p>Voici un résumé des notes de frais soumises par <strong>${employeeName}</strong>.</p>
         <table>
           <thead>
             <tr>
@@ -205,17 +205,23 @@ class EmailService {
     required String recipient,
     required String sender,
     required String password,
+    required String employeeName,
+    String? ccRecipient,
   }) async {
     if (expenses.isEmpty) return;
     final smtpServer = gmail(sender, password);
-    final subject = 'Rapport de notes de frais combiné - ${DateFormat('dd/MM/yyyy').format(DateTime.now())}';
+    final subject = 'Rapport de notes de frais - $employeeName - ${DateFormat('dd/MM/yyyy').format(DateTime.now())}';
 
     final message = Message()
-      ..from = Address(sender, 'Notes de Frais App')
+      ..from = Address(sender, 'Notes de Frais App ($employeeName)')
       ..recipients.add(recipient)
       ..subject = subject
-      ..html = _formatBatchHtmlBody(expenses)
+      ..html = _formatBatchHtmlBody(expenses, employeeName)
       ..attachments = await _getAttachmentsForBatch(expenses);
+
+    if (ccRecipient != null && ccRecipient.isNotEmpty) {
+      message.ccRecipients.add(Address(ccRecipient));
+    }
 
     try {
       final sendReport = await send(message, smtpServer);

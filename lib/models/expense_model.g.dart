@@ -34,13 +34,15 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
       categoryConfidence: fields[14] as double?,
       normalizedMerchantNameConfidence: fields[15] as double?,
       creditCard: fields[16] as String?,
+      // La correction est ici. On vérifie si la valeur est null et on met 'false' par défaut.
+      isSent: fields[17] as bool? ?? false,
     );
   }
 
   @override
   void write(BinaryWriter writer, ExpenseModel obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.imagePath)
       ..writeByte(1)
@@ -74,7 +76,9 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
       ..writeByte(15)
       ..write(obj.normalizedMerchantNameConfidence)
       ..writeByte(16)
-      ..write(obj.creditCard);
+      ..write(obj.creditCard)
+      ..writeByte(17)
+      ..write(obj.isSent);
   }
 
   @override
