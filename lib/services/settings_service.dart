@@ -8,6 +8,7 @@ class SettingsService {
   static const String _employeeFirstNameKey = 'employee_first_name';
   static const String _employeeLastNameKey = 'employee_last_name';
   static const String _fiscalHorsepowerKey = 'fiscal_horsepower';
+  static const String _employeeEmployerKey = 'employee_employer';
 
   Future<void> saveRecipientInfo({required String email, String? firstName, String? lastName}) async {
     final prefs = await SharedPreferences.getInstance();
@@ -25,12 +26,13 @@ class SettingsService {
     };
   }
 
-  Future<void> saveEmployeeInfo({String? firstName, String? lastName, String? email, String? fiscalHorsepower}) async {
+  Future<void> saveEmployeeInfo({String? firstName, String? lastName, String? email, String? fiscalHorsepower, String? employer}) async {
     final prefs = await SharedPreferences.getInstance();
     if (firstName != null) await prefs.setString(_employeeFirstNameKey, firstName);
     if (lastName != null) await prefs.setString(_employeeLastNameKey, lastName);
     if (email != null) await prefs.setString(_employeeEmailKey, email);
     if (fiscalHorsepower != null) await prefs.setString(_fiscalHorsepowerKey, fiscalHorsepower);
+    if (employer != null) await prefs.setString(_employeeEmployerKey, employer);
   }
 
   Future<Map<String, String>> getEmployeeInfo() async {
@@ -40,6 +42,7 @@ class SettingsService {
       'lastName': prefs.getString(_employeeLastNameKey) ?? '',
       'email': prefs.getString(_employeeEmailKey) ?? '',
       'fiscalHorsepower': prefs.getString(_fiscalHorsepowerKey) ?? '',
+      'employer': prefs.getString(_employeeEmployerKey) ?? '',
     };
   }
 }

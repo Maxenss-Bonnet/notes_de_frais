@@ -58,6 +58,7 @@ class _BatchResultViewState extends State<BatchResultView> {
           final expense = _expenses[index];
           final bool isDataComplete = expense.date != null && expense.amount != null && expense.company != null;
           final bool isAssociated = expense.associatedTo != null;
+          final bool hasComment = expense.comment != null && expense.comment!.isNotEmpty;
 
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -74,13 +75,23 @@ class _BatchResultViewState extends State<BatchResultView> {
                     isAssociated ? "Associé à : ${expense.associatedTo}" : "Aucune société associée",
                     style: TextStyle(color: isAssociated ? Colors.green : Colors.red, fontSize: 12),
                   ),
+                  if (hasComment)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        'Libellé : ${expense.comment}',
+                        style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey.shade700),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                 ],
               ),
               trailing: Text(
                 expense.amount != null ? currencyFormat.format(expense.amount) : 'N/A',
                 style: TextStyle(fontWeight: FontWeight.bold, color: isDataComplete ? Colors.blue : Colors.red, fontSize: 16),
               ),
-              isThreeLine: false,
+              isThreeLine: hasComment,
               onTap: () async {
                 final updatedExpense = await Navigator.of(context).push<ExpenseModel>(
                   MaterialPageRoute(

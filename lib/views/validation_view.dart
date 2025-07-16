@@ -28,6 +28,7 @@ class _ValidationViewState extends State<ValidationView> {
   late TextEditingController _vatController;
   late TextEditingController _companyController;
   late TextEditingController _categoryController;
+  late TextEditingController _commentController;
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _ValidationViewState extends State<ValidationView> {
     _vatController = TextEditingController(text: _editableExpense.vat?.toString() ?? '0.0');
     _companyController = TextEditingController(text: _editableExpense.company ?? '');
     _categoryController = TextEditingController(text: _editableExpense.category ?? '');
+    _commentController = TextEditingController(text: _editableExpense.comment ?? '');
   }
 
   @override
@@ -49,6 +51,7 @@ class _ValidationViewState extends State<ValidationView> {
     _vatController.dispose();
     _companyController.dispose();
     _categoryController.dispose();
+    _commentController.dispose();
     super.dispose();
   }
 
@@ -78,6 +81,7 @@ class _ValidationViewState extends State<ValidationView> {
     if (_isEditing) {
       _updateExpenseFromControllers();
     }
+    _editableExpense.comment = _commentController.text;
     _editableExpense.associatedTo = _selectedCompany;
     Navigator.of(context).pop(_editableExpense);
   }
@@ -88,6 +92,7 @@ class _ValidationViewState extends State<ValidationView> {
     if (_isEditing) {
       _updateExpenseFromControllers();
     }
+    _editableExpense.comment = _commentController.text;
     _editableExpense.associatedTo = _selectedCompany;
 
     await _controller.saveExpenseLocally(_editableExpense);
@@ -114,7 +119,7 @@ class _ValidationViewState extends State<ValidationView> {
           if (!isMileageExpense)
             IconButton(
               icon: Icon(_isEditing ? Icons.done : Icons.edit),
-              tooltip: _isEditing ? 'Terminer' : 'Modifier',
+              tooltip: _isEditing ? 'Terminer la modification' : 'Modifier les données de l\'IA',
               onPressed: () {
                 setState(() {
                   if (_isEditing) {
@@ -161,6 +166,8 @@ class _ValidationViewState extends State<ValidationView> {
               if (!isMileageExpense)
                 _buildEditableTextField(_categoryController, 'Catégorie', _editableExpense.categoryConfidence),
 
+              const SizedBox(height: 16),
+              _buildCommentField(),
               const SizedBox(height: 24),
               _buildCompanyDropdown(),
             ],
@@ -181,6 +188,21 @@ class _ValidationViewState extends State<ValidationView> {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    );
+  }
+
+  Widget _buildCommentField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextFormField(
+        controller: _commentController,
+        decoration: const InputDecoration(
+          labelText: 'Libellé',
+          border: OutlineInputBorder(),
+          prefixIcon: Icon(Icons.edit_note_outlined),
+        ),
+        // Aucun validateur, car le champ est facultatif
+      ),
     );
   }
 

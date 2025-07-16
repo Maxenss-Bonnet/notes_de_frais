@@ -76,12 +76,13 @@ class _AddMileageExpenseViewState extends State<AddMileageExpenseView> {
   void _createAndValidateExpense() {
     if (_formKey.currentState!.validate()) {
       final expense = ExpenseModel(
-        imagePath: '', // Pas d'image pour ce type de note
-        date: DateFormat('dd/MM/yyyy').tryParse(_dateController.text),
-        amount: _calculatedAmount,
-        vat: 0, // Pas de TVA sur les frais kilométriques
-        company: _reasonController.text,
-        category: 'Frais Kilométriques',
+          imagePath: '', // Pas d'image pour ce type de note
+          date: DateFormat('dd/MM/yyyy').tryParse(_dateController.text),
+          amount: _calculatedAmount,
+          vat: 0, // Pas de TVA sur les frais kilométriques
+          company: _reasonController.text,
+          category: 'Frais Kilométriques',
+          distance: double.tryParse(_distanceController.text)
       );
 
       Navigator.of(context).pushReplacement(

@@ -36,6 +36,7 @@ dependencies:
   flutter_riverpod: ^2.5.1
   shimmer: ^3.0.0
   path: any
+  pdf: ^3.11.0
 
 dev_dependencies:
   flutter_test:
@@ -55,9 +56,10 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
 
-  # Ajout pour charger le fichier .env
   assets:
     - .env
     - assets/credentials.json
-    # N'oubliez pas d'ajouter le dossier de votre logo
-    - assets/
+    - assets/logo.png
+    - assets/fonts/Roboto-Regular.ttf
+    - assets/fonts/Roboto-Bold.ttf
+    - assets/fonts/Roboto-Italic.ttf

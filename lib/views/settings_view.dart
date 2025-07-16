@@ -18,6 +18,7 @@ class _SettingsViewState extends State<SettingsView> {
   late TextEditingController _employeeEmailController;
   late TextEditingController _employeeFirstNameController;
   late TextEditingController _employeeLastNameController;
+  late TextEditingController _employeeEmployerController;
   String? _selectedCv;
   bool _isLoading = true;
 
@@ -30,6 +31,7 @@ class _SettingsViewState extends State<SettingsView> {
     _employeeEmailController = TextEditingController();
     _employeeFirstNameController = TextEditingController();
     _employeeLastNameController = TextEditingController();
+    _employeeEmployerController = TextEditingController();
     _loadSettings();
   }
 
@@ -45,6 +47,7 @@ class _SettingsViewState extends State<SettingsView> {
     _employeeEmailController.text = employeeInfo['email']!;
     _employeeFirstNameController.text = employeeInfo['firstName']!;
     _employeeLastNameController.text = employeeInfo['lastName']!;
+    _employeeEmployerController.text = employeeInfo['employer']!;
     final savedCv = employeeInfo['fiscalHorsepower'];
     if (savedCv != null && kCvOptions.contains(savedCv)) {
       _selectedCv = savedCv;
@@ -60,6 +63,7 @@ class _SettingsViewState extends State<SettingsView> {
     _employeeEmailController.dispose();
     _employeeFirstNameController.dispose();
     _employeeLastNameController.dispose();
+    _employeeEmployerController.dispose();
     super.dispose();
   }
 
@@ -75,6 +79,7 @@ class _SettingsViewState extends State<SettingsView> {
         firstName: _employeeFirstNameController.text,
         lastName: _employeeLastNameController.text,
         fiscalHorsepower: _selectedCv,
+        employer: _employeeEmployerController.text,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -118,6 +123,12 @@ class _SettingsViewState extends State<SettingsView> {
                 decoration: const InputDecoration(labelText: 'Adresse e-mail personnelle', border: OutlineInputBorder(), prefixIcon: Icon(Icons.alternate_email)),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) => (value == null || !value.contains('@')) ? 'Veuillez entrer une adresse e-mail valide.' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _employeeEmployerController,
+                decoration: const InputDecoration(labelText: 'Employeur (Nom de l\'entreprise)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.business_center_outlined)),
+                validator: (value) => value == null || value.isEmpty ? 'Veuillez entrer un employeur.' : null,
               ),
               const SizedBox(height: 24),
               DropdownButtonFormField<String>(
