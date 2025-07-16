@@ -22,6 +22,7 @@ class GoogleSheetsService {
       final List<dynamic> row = [
         expense.date != null ? dateFormat.format(expense.date!) : 'N/A',
         expense.company ?? 'N/A',
+        expense.category ?? 'N/A',
         expense.associatedTo ?? 'N/A',
         expense.amount,
         expense.vat,
@@ -54,6 +55,7 @@ class GoogleSheetsService {
         rows.add([
           expense.date != null ? dateFormat.format(expense.date!) : 'N/A',
           expense.company ?? 'N/A',
+          expense.category ?? 'N/A',
           expense.associatedTo ?? 'N/A',
           expense.amount,
           expense.vat,

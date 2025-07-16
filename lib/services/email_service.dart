@@ -15,6 +15,7 @@ class EmailService {
     final amount = expense.amount != null ? numberFormat.format(expense.amount) : 'N/A';
     final vat = expense.vat != null ? numberFormat.format(expense.vat) : 'N/A';
     final company = expense.company ?? 'N/A';
+    final category = expense.category ?? 'N/A';
     final associatedTo = expense.associatedTo ?? 'N/A';
     final creditCard = expense.creditCard ?? 'N/A';
 
@@ -28,7 +29,8 @@ class EmailService {
         h2 { color: #005a9c; border-bottom: 2px solid #005a9c; padding-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #f2f2f2; }
+        th { background-color: #f2f2f2; width: 30%;}
+        .summary { margin-top: 20px; padding-top: 10px; border-top: 2px solid #333; text-align: right; font-weight: bold;}
         .footer { margin-top: 30px; font-size: 0.8em; color: #777; text-align: center; }
       </style>
     </head>
@@ -40,6 +42,10 @@ class EmailService {
           <tr>
             <th>Fournisseur</th>
             <td>$company</td>
+          </tr>
+          <tr>
+            <th>Catégorie</th>
+            <td>$category</td>
           </tr>
           <tr>
             <th>Date</th>
@@ -58,6 +64,10 @@ class EmailService {
             <td>$creditCard</td>
           </tr>
         </table>
+        <div class="summary">
+            <p>Total TTC: $amount</p>
+            <p>Total TVA: $vat</p>
+        </div>
         <p class="footer">E-mail généré automatiquement par l'application Notes de Frais.</p>
       </div>
     </body>
@@ -119,15 +129,17 @@ class EmailService {
 
     final expenseRows = expenses.map((expense) {
       final date = expense.date != null ? dateFormat.format(expense.date!) : 'N/A';
+      final company = expense.company ?? 'N/A';
+      final category = expense.category ?? 'N/A';
+      final associatedTo = expense.associatedTo ?? 'N/A';
       final amount = expense.amount != null ? numberFormat.format(expense.amount) : 'N/A';
       final vat = expense.vat != null ? numberFormat.format(expense.vat) : 'N/A';
-      final company = expense.company ?? 'N/A';
-      final associatedTo = expense.associatedTo ?? 'N/A';
       final creditCard = expense.creditCard ?? 'N/A';
       return '''
         <tr>
           <td>$date</td>
           <td>$company</td>
+          <td>$category</td>
           <td>$associatedTo</td>
           <td>$amount</td>
           <td>$vat</td>
@@ -142,12 +154,12 @@ class EmailService {
     <head>
       <style>
         body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-        .container { border: 1px solid #ddd; padding: 20px; border-radius: 8px; max-width: 600px; }
+        .container { border: 1px solid #ddd; padding: 20px; border-radius: 8px; max-width: 800px; }
         h2 { color: #005a9c; border-bottom: 2px solid #005a9c; padding-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
         th { background-color: #f2f2f2; }
-        .summary { margin-top: 20px; padding-top: 10px; border-top: 2px solid #333; text-align: right; font-weight: bold;}
+        tfoot td { font-weight: bold; border-top: 2px solid #333; }
         .footer { margin-top: 30px; font-size: 0.8em; color: #777; text-align: center; }
       </style>
     </head>
@@ -160,6 +172,7 @@ class EmailService {
             <tr>
               <th>Date</th>
               <th>Fournisseur</th>
+              <th>Catégorie</th>
               <th>Associé à</th>
               <th>Montant TTC</th>
               <th>Montant TVA</th>
@@ -169,11 +182,19 @@ class EmailService {
           <tbody>
             $expenseRows
           </tbody>
+          <tfoot>
+            <tr>
+                <td colspan="4" style="text-align: right;">Total TTC</td>
+                <td>${numberFormat.format(totalAmount)}</td>
+                <td colspan="2"></td>
+            </tr>
+            <tr>
+                <td colspan="5" style="text-align: right;">Total TVA</td>
+                <td>${numberFormat.format(totalVat)}</td>
+                <td></td>
+            </tr>
+          </tfoot>
         </table>
-        <div class="summary">
-          <p>Total TTC: ${numberFormat.format(totalAmount)}</p>
-          <p>Total TVA: ${numberFormat.format(totalVat)}</p>
-        </div>
         <p class="footer">E-mail généré automatiquement par l'application Notes de Frais.</p>
       </div>
     </body>
