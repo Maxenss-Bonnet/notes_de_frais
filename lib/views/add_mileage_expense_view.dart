@@ -35,7 +35,6 @@ class _AddMileageExpenseViewState extends State<AddMileageExpenseView> {
     final cv = info['fiscalHorsepower'];
     if (cv == null || cv.isEmpty) {
       if (mounted) {
-        // Alerte si les CV ne sont pas configurés
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -76,10 +75,10 @@ class _AddMileageExpenseViewState extends State<AddMileageExpenseView> {
   void _createAndValidateExpense() {
     if (_formKey.currentState!.validate()) {
       final expense = ExpenseModel(
-          imagePath: '', // Pas d'image pour ce type de note
+          imagePath: '',
           date: DateFormat('dd/MM/yyyy').tryParse(_dateController.text),
           amount: _calculatedAmount,
-          vat: 0, // Pas de TVA sur les frais kilométriques
+          vat: 0,
           company: _reasonController.text,
           category: 'Frais Kilométriques',
           distance: double.tryParse(_distanceController.text)
@@ -108,11 +107,11 @@ class _AddMileageExpenseViewState extends State<AddMileageExpenseView> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
+          : Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+          child: Column(
             children: [
               TextFormField(
                 controller: _dateController,
@@ -178,16 +177,19 @@ class _AddMileageExpenseViewState extends State<AddMileageExpenseView> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _createAndValidateExpense,
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('Continuer vers la validation'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
+              const SizedBox(height: 80),
             ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + MediaQuery.of(context).padding.bottom),
+        child: ElevatedButton.icon(
+          onPressed: _createAndValidateExpense,
+          icon: const Icon(Icons.arrow_forward),
+          label: const Text('Continuer vers la validation'),
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
           ),
         ),
       ),

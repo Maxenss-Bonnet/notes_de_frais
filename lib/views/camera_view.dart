@@ -52,7 +52,6 @@ class _CameraViewState extends ConsumerState<CameraView> with WidgetsBindingObse
       if (!_cameraService.isCameraInitialized) {
         _initialize();
       }
-      // Rafraîchit le compteur au retour sur l'application
       ref.invalidate(unsentExpensesCountProvider);
     }
   }
@@ -108,85 +107,53 @@ class _CameraViewState extends ConsumerState<CameraView> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
-    final unsentCount = ref.watch(unsentExpensesCountProvider);
-
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('Prendre un justificatif'),
-        backgroundColor: Colors.black.withOpacity(0.5),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: AnimatedIconButton(icon: Icons.bar_chart, tooltip: 'Statistiques', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const StatisticsView()))),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: badges.Badge(
-              showBadge: unsentCount > 0,
-              badgeContent: Text('$unsentCount', style: const TextStyle(color: Colors.white)),
-              position: badges.BadgePosition.topEnd(top: -8, end: -5),
-              child: AnimatedIconButton(
-                  icon: Icons.history,
-                  tooltip: 'Historique',
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HistoryView()))),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 16.0, 8.0),
-            child: AnimatedIconButton(icon: Icons.settings, tooltip: 'Paramètres', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsView()))),
-          ),
-        ],
-      ),
-      body: _buildCameraPreview(),
+      appBar: _buildAppBar(context, ref),
+      body: _buildCameraBody(),
     );
   }
 
-  Widget _buildCameraPreview() {
+  AppBar _buildAppBar(BuildContext context, WidgetRef ref) {
+    final unsentCount = ref.watch(unsentExpensesCountProvider);
+    return AppBar(
+      title: const Text('Prendre un justificatif'),
+      backgroundColor: Colors.black.withOpacity(0.5),
+      foregroundColor: Colors.white,
+      elevation: 0,
+      actions: [
+        _AppBarAction(icon: Icons.bar_chart, tooltip: 'Statistiques', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const StatisticsView()))),
+        _AppBarAction(
+          tooltip: 'Historique',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HistoryView())),
+          child: badges.Badge(
+            showBadge: unsentCount > 0,
+            badgeContent: Text('$unsentCount', style: const TextStyle(color: Colors.white)),
+            position: badges.BadgePosition.topEnd(top: -8, end: -5),
+            child: const Icon(Icons.history),
+          ),
+        ),
+        _AppBarAction(icon: Icons.settings, tooltip: 'Paramètres', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsView()))),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildCameraBody() {
     if (_cameraService.isCameraInitialized && _cameraService.cameraController != null) {
       return Stack(
         fit: StackFit.expand,
         children: [
           Center(child: CameraPreview(_cameraService.cameraController!)),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-              color: Colors.black.withOpacity(0.4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(onPressed: _pickFiles, icon: const Icon(Icons.photo_library, color: Colors.white, size: 36)),
-                  GestureDetector(
-                    onTap: _takePicture,
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)),
-                    ),
-                  ),
-                  badges.Badge(
-                    showBadge: _capturedImagePaths.isNotEmpty,
-                    position: badges.BadgePosition.topEnd(top: -12, end: -12),
-                    badgeContent: Text('${_capturedImagePaths.length}', style: const TextStyle(color: Colors.white)),
-                    child: IconButton(
-                      onPressed: _capturedImagePaths.isNotEmpty ? _navigateToProcessingView : null,
-                      icon: Icon(Icons.send, color: _capturedImagePaths.isNotEmpty ? Colors.white : Colors.grey, size: 36),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildBottomControls(),
           if (_capturedImagePaths.isNotEmpty)
             Positioned(
-              bottom: 120,
+              bottom: 130,
               left: 20,
               child: FloatingActionButton.small(
                 onPressed: _removeLastPicture,
                 backgroundColor: Colors.red,
+                heroTag: 'undo_picture',
                 child: const Icon(Icons.undo),
               ),
             ),
@@ -195,5 +162,92 @@ class _CameraViewState extends ConsumerState<CameraView> with WidgetsBindingObse
     } else {
       return const Center(child: CircularProgressIndicator());
     }
+  }
+
+  Widget _buildBottomControls() {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+        color: Colors.black.withOpacity(0.4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _BottomControlButton(onPressed: _pickFiles, icon: Icons.photo_library),
+            _TakePictureButton(onTap: _takePicture),
+            badges.Badge(
+              showBadge: _capturedImagePaths.isNotEmpty,
+              position: badges.BadgePosition.topEnd(top: -12, end: -12),
+              badgeContent: Text('${_capturedImagePaths.length}', style: const TextStyle(color: Colors.white)),
+              child: _BottomControlButton(
+                onPressed: _capturedImagePaths.isNotEmpty ? _navigateToProcessingView : null,
+                icon: Icons.send,
+                color: _capturedImagePaths.isNotEmpty ? Colors.white : Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+class _AppBarAction extends StatelessWidget {
+  final IconData? icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final Widget? child;
+
+  const _AppBarAction({this.icon, required this.tooltip, required this.onPressed, this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: AnimatedIconButton(
+        icon: icon,
+        tooltip: tooltip,
+        onPressed: onPressed,
+        child: child,
+      ),
+    );
+  }
+}
+
+class _BottomControlButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final Color color;
+
+  const _BottomControlButton({required this.onPressed, required this.icon, this.color = Colors.white});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      icon: Icon(icon, color: color, size: 36),
+    );
+  }
+}
+
+class _TakePictureButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _TakePictureButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 4),
+        ),
+      ),
+    );
   }
 }

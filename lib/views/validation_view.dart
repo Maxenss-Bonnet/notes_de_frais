@@ -132,7 +132,7 @@ class _ValidationViewState extends State<ValidationView> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 100, left: 16, right: 16, top: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         child: Form(
           key: _formKey,
           child: Column(
@@ -170,12 +170,13 @@ class _ValidationViewState extends State<ValidationView> {
               _buildCommentField(),
               const SizedBox(height: 24),
               _buildCompanyDropdown(),
+              const SizedBox(height: 80),
             ],
           ),
         ),
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.all(8.0),
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + MediaQuery.of(context).padding.bottom),
         child: ElevatedButton.icon(
           onPressed: widget.isInBatchMode ? _onSaveForBatch : _onSaveAndClose,
           icon: Icon(widget.isInBatchMode ? Icons.save : Icons.check_circle_outline),
@@ -187,7 +188,6 @@ class _ValidationViewState extends State<ValidationView> {
               textStyle: const TextStyle(fontSize: 18)),
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -201,7 +201,6 @@ class _ValidationViewState extends State<ValidationView> {
           border: OutlineInputBorder(),
           prefixIcon: Icon(Icons.edit_note_outlined),
         ),
-        // Aucun validateur, car le champ est facultatif
       ),
     );
   }

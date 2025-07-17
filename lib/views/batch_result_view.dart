@@ -52,7 +52,6 @@ class _BatchResultViewState extends State<BatchResultView> {
         title: Text('Valider les notes (${_expenses.length})'),
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 100),
         itemCount: _expenses.length,
         itemBuilder: (context, index) {
           final expense = _expenses[index];
@@ -106,8 +105,8 @@ class _BatchResultViewState extends State<BatchResultView> {
           );
         },
       ),
-      floatingActionButton: _expenses.isNotEmpty ? Padding(
-        padding: const EdgeInsets.all(8.0),
+      bottomNavigationBar: _expenses.isNotEmpty ? Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + MediaQuery.of(context).padding.bottom),
         child: ElevatedButton.icon(
           onPressed: allValidated ? _onSaveAll : null,
           icon: const Icon(Icons.done_all),
@@ -121,7 +120,6 @@ class _BatchResultViewState extends State<BatchResultView> {
           ),
         ),
       ) : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }

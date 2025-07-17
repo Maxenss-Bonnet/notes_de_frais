@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -87,6 +86,19 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
     });
   }
 
+  void _toggleSelectAllUnsent() {
+    final unsentKeys = _expenses.where((e) => !e.isSent).map((e) => e.key).toSet();
+    final allUnsentSelected = _selectedKeys.containsAll(unsentKeys) && unsentKeys.isNotEmpty;
+
+    setState(() {
+      if (allUnsentSelected) {
+        _selectedKeys.removeAll(unsentKeys);
+      } else {
+        _selectedKeys.addAll(unsentKeys);
+      }
+    });
+  }
+
   void _sendSelectedExpenses() {
     final selectedExpenses = _expenses.where((e) => _selectedKeys.contains(e.key)).toList();
     if (selectedExpenses.isEmpty) {
@@ -107,21 +119,26 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        // La boîte de dialogue notifie la page parente de rafraîchir via le .then()
         return const _ProgressDialogAnimator();
       },
-    ).then((_) => _refreshHistory()); // Rafraîchir l'historique après la fermeture de la pop-up
+    ).then((_) => _refreshHistory());
   }
 
   @override
   Widget build(BuildContext context) {
-    final DateFormat dateFormat = DateFormat('dd MMMM yyyy', 'fr_FR');
-    final NumberFormat currencyFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
+    final unsentExpenses = _expenses.where((e) => !e.isSent).toList();
+    final allUnsentSelected = unsentExpenses.isNotEmpty && unsentExpenses.every((e) => _selectedKeys.contains(e.key));
 
     return Scaffold(
       appBar: AppBar(
         title: Text(_selectedKeys.isEmpty ? 'Historique des notes' : '${_selectedKeys.length} sélectionnée(s)'),
         actions: [
+          if (unsentExpenses.isNotEmpty)
+            IconButton(
+              icon: Icon(allUnsentSelected ? Icons.deselect : Icons.select_all),
+              tooltip: allUnsentSelected ? 'Tout désélectionner' : 'Sélectionner les non-envoyées',
+              onPressed: _toggleSelectAllUnsent,
+            ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Corbeille',
@@ -134,12 +151,7 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
         ],
       ),
       body: _expenses.isEmpty && !_isLoading
-          ? const Center(
-        child: Text(
-          'Aucune note de frais dans l\'historique.',
-          style: TextStyle(fontSize: 16),
-        ),
-      )
+          ? const Center(child: Text('Aucune note de frais dans l\'historique.', style: TextStyle(fontSize: 16)))
           : RefreshIndicator(
         onRefresh: _refreshHistory,
         child: ListView.builder(
@@ -147,80 +159,27 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
           itemCount: _expenses.length + (_hasMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index == _expenses.length) {
-              return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: CircularProgressIndicator(),
-                  ));
+              return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
             }
-
             final expense = _expenses[index];
-            final bool isSelected = _selectedKeys.contains(expense.key);
-            final bool isMileage = expense.category == 'Frais Kilométriques';
-
-            return Dismissible(
-              key: Key(expense.key.toString()),
-              direction: DismissDirection.endToStart,
-              onDismissed: (direction) {
-                _storageService.moveToTrash(expense.key);
-                if (mounted) {
-                  setState(() {
-                    _expenses.removeAt(index);
-                  });
+            return _ExpenseHistoryTile(
+              expense: expense,
+              isSelected: _selectedKeys.contains(expense.key),
+              onSelectionChanged: (isSelected) => _onSelectionChanged(isSelected, expense),
+              onTap: () async {
+                final result = await Navigator.of(context).push<ExpenseModel>(
+                  MaterialPageRoute(builder: (context) => ValidationView(expense: expense, isInBatchMode: true)),
+                );
+                if (result != null && mounted) {
+                  setState(() => _expenses[index] = result);
                 }
               },
-              background: Container(
-                color: Colors.red,
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: const Icon(Icons.delete, color: Colors.white),
-              ),
-              child: Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: expense.isSent ? Colors.grey.shade200 : Colors.white,
-                child: ListTile(
-                  contentPadding: const EdgeInsets.fromLTRB(4.0, 8.0, 16.0, 8.0),
-                  leading: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Checkbox(
-                        value: isSelected,
-                        onChanged: expense.isSent ? null : (bool? value) => _onSelectionChanged(value, expense),
-                      ),
-                      Icon(isMileage ? Icons.directions_car_outlined : Icons.receipt_long_outlined),
-                      const SizedBox(width: 4),
-                    ],
-                  ),
-                  title: Text(expense.company ?? 'Motif ou Fournisseur inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(
-                      '${expense.date != null ? dateFormat.format(expense.date!) : 'Date inconnue'}\nAssocié à : ${expense.associatedTo ?? 'N/A'}'),
-                  trailing: expense.isSent
-                      ? const Tooltip(message: 'Envoyée', child: Icon(Icons.check_circle, color: Colors.green))
-                      : Text(
-                    expense.amount != null ? currencyFormat.format(expense.amount) : 'N/A',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                      fontSize: 16,
-                    ),
-                  ),
-                  isThreeLine: true,
-                  onTap: expense.isSent
-                      ? null
-                      : () async {
-                    final result = await Navigator.of(context).push<ExpenseModel>(
-                      MaterialPageRoute(
-                        builder: (context) => ValidationView(expense: expense, isInBatchMode: true),
-                      ),
-                    );
-                    if (result != null && mounted) {
-                      setState(() {
-                        _expenses[index] = result;
-                      });
-                    }
-                  },
-                ),
-              ),
+              onDismissed: () {
+                _storageService.moveToTrash(expense.key);
+                if (mounted) {
+                  setState(() => _expenses.removeAt(index));
+                }
+              },
             );
           },
         ),
@@ -248,6 +207,69 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
             backgroundColor: Theme.of(context).colorScheme.secondary,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ExpenseHistoryTile extends StatelessWidget {
+  final ExpenseModel expense;
+  final bool isSelected;
+  final ValueChanged<bool?> onSelectionChanged;
+  final VoidCallback onTap;
+  final VoidCallback onDismissed;
+
+  const _ExpenseHistoryTile({
+    required this.expense,
+    required this.isSelected,
+    required this.onSelectionChanged,
+    required this.onTap,
+    required this.onDismissed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dateFormat = DateFormat('dd MMMM yyyy', 'fr_FR');
+    final currencyFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
+    final isMileage = expense.category == 'Frais Kilométriques';
+
+    return Dismissible(
+      key: Key(expense.key.toString()),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => onDismissed(),
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: expense.isSent ? Colors.grey.shade200 : Colors.white,
+        child: ListTile(
+          contentPadding: const EdgeInsets.fromLTRB(4.0, 8.0, 16.0, 8.0),
+          leading: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Checkbox(
+                value: isSelected,
+                onChanged: expense.isSent ? null : onSelectionChanged,
+              ),
+              Icon(isMileage ? Icons.directions_car_outlined : Icons.receipt_long_outlined),
+              const SizedBox(width: 4),
+            ],
+          ),
+          title: Text(expense.company ?? 'Motif ou Fournisseur inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: Text('${expense.date != null ? dateFormat.format(expense.date!) : 'Date inconnue'}\nAssocié à : ${expense.associatedTo ?? 'N/A'}'),
+          trailing: expense.isSent
+              ? const Tooltip(message: 'Envoyée', child: Icon(Icons.check_circle, color: Colors.green))
+              : Text(
+            expense.amount != null ? currencyFormat.format(expense.amount) : 'N/A',
+            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 16),
+          ),
+          isThreeLine: true,
+          onTap: expense.isSent ? null : onTap,
+        ),
       ),
     );
   }
@@ -299,7 +321,6 @@ class __ProgressDialogAnimatorState extends ConsumerState<_ProgressDialogAnimato
           Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted) {
               Navigator.of(context).pop();
-              // Le .then() sur le showDialog s'occupera du rafraîchissement
             }
           });
         });
@@ -320,10 +341,10 @@ class __ProgressDialogAnimatorState extends ConsumerState<_ProgressDialogAnimato
     Widget content;
     switch (status.executionStatus) {
       case TaskExecutionStatus.success:
-        content = Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 48),
-          const SizedBox(height: 20),
-          Text(status.message ?? 'Opération réussie.'),
+        content = const Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.check_circle, color: Colors.green, size: 48),
+          SizedBox(height: 20),
+          Text('Opération réussie.'),
         ]);
         break;
       case TaskExecutionStatus.error:

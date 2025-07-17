@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 
 class AnimatedIconButton extends StatefulWidget {
-  final IconData icon;
+  final IconData? icon;
   final VoidCallback? onPressed;
   final String? tooltip;
   final Color color;
   final double size;
+  final Widget? child;
 
   const AnimatedIconButton({
     super.key,
-    required this.icon,
+    this.icon,
     required this.onPressed,
     this.tooltip,
     this.color = Colors.white,
     this.size = 24.0,
+    this.child,
   });
 
   @override
@@ -66,7 +68,7 @@ class _AnimatedIconButtonState extends State<AnimatedIconButton>
         message: widget.tooltip ?? '',
         child: ScaleTransition(
           scale: _scaleAnimation,
-          child: Icon(
+          child: widget.child ?? Icon(
             widget.icon,
             color: widget.color,
             size: widget.size,
