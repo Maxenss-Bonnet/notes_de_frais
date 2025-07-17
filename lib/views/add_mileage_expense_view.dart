@@ -20,7 +20,7 @@ class _AddMileageExpenseViewState extends State<AddMileageExpenseView> {
   final _dateController = TextEditingController(text: DateFormat('dd/MM/yyyy').format(DateTime.now()));
 
   String? _fiscalHorsepower;
-  double _calculatedAmount = 0.0;
+  final ValueNotifier<double> _calculatedAmountNotifier = ValueNotifier<double>(0.0);
   bool _isLoading = true;
 
   @override
@@ -65,10 +65,10 @@ class _AddMileageExpenseViewState extends State<AddMileageExpenseView> {
     if (distance != null && _fiscalHorsepower != null) {
       final rate = kMileageRates[_fiscalHorsepower];
       if (rate != null) {
-        setState(() {
-          _calculatedAmount = distance * rate;
-        });
+        _calculatedAmountNotifier.value = distance * rate;
       }
+    } else {
+      _calculatedAmountNotifier.value = 0.0;
     }
   }
 
@@ -77,7 +77,7 @@ class _AddMileageExpenseViewState extends State<AddMileageExpenseView> {
       final expense = ExpenseModel(
           imagePath: '',
           date: DateFormat('dd/MM/yyyy').tryParse(_dateController.text),
-          amount: _calculatedAmount,
+          amount: _calculatedAmountNotifier.value,
           vat: 0,
           company: _reasonController.text,
           category: 'Frais Kilométriques',
@@ -96,6 +96,7 @@ class _AddMileageExpenseViewState extends State<AddMileageExpenseView> {
     _distanceController.dispose();
     _reasonController.dispose();
     _dateController.dispose();
+    _calculatedAmountNotifier.dispose();
     super.dispose();
   }
 
@@ -159,23 +160,29 @@ class _AddMileageExpenseViewState extends State<AddMileageExpenseView> {
                 },
               ),
               const SizedBox(height: 24),
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Text('Montant du remboursement', style: TextStyle(fontSize: 18)),
-                      const SizedBox(height: 8),
-                      Text(
-                        NumberFormat.currency(locale: 'fr_FR', symbol: '€').format(_calculatedAmount),
-                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green),
+              ValueListenableBuilder<double>(
+                valueListenable: _calculatedAmountNotifier,
+                builder: (context, calculatedAmount, child) {
+                  return Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          const Text('Montant du remboursement', style: TextStyle(fontSize: 18)),
+                          const SizedBox(height: 8),
+                          Text(
+                            NumberFormat.currency(locale: 'fr_FR', symbol: '€').format(calculatedAmount),
+                            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                          const SizedBox(height: 4),
+                          if (_fiscalHorsepower != null)
+                            Text('Basé sur $_fiscalHorsepower', style: const TextStyle(color: Colors.grey)),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text('Basé sur $_fiscalHorsepower', style: const TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 80),
             ],
