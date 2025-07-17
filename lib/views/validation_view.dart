@@ -9,7 +9,8 @@ class ValidationView extends StatefulWidget {
   final ExpenseModel expense;
   final bool isInBatchMode;
 
-  const ValidationView({super.key, required this.expense, this.isInBatchMode = false});
+  const ValidationView(
+      {super.key, required this.expense, this.isInBatchMode = false});
 
   @override
   State<ValidationView> createState() => _ValidationViewState();
@@ -36,12 +37,19 @@ class _ValidationViewState extends State<ValidationView> {
     _editableExpense = widget.expense;
     _selectedCompany = _editableExpense.associatedTo;
 
-    _dateController = TextEditingController(text: _editableExpense.date != null ? _dateFormat.format(_editableExpense.date!) : '');
-    _amountController = TextEditingController(text: _editableExpense.amount?.toStringAsFixed(2) ?? '');
-    _vatController = TextEditingController(text: _editableExpense.vat?.toString() ?? '0.0');
+    _dateController = TextEditingController(
+        text: _editableExpense.date != null
+            ? _dateFormat.format(_editableExpense.date!)
+            : '');
+    _amountController = TextEditingController(
+        text: _editableExpense.amount?.toStringAsFixed(2) ?? '');
+    _vatController =
+        TextEditingController(text: _editableExpense.vat?.toString() ?? '0.0');
     _companyController = TextEditingController(text: _editableExpense.company ?? '');
-    _categoryController = TextEditingController(text: _editableExpense.category ?? '');
-    _commentController = TextEditingController(text: _editableExpense.comment ?? '');
+    _categoryController =
+        TextEditingController(text: _editableExpense.category ?? '');
+    _commentController =
+        TextEditingController(text: _editableExpense.comment ?? '');
   }
 
   @override
@@ -58,8 +66,10 @@ class _ValidationViewState extends State<ValidationView> {
   void _updateExpenseFromControllers() {
     if (_formKey.currentState!.validate()) {
       _editableExpense.date = _dateFormat.tryParse(_dateController.text);
-      _editableExpense.amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
-      _editableExpense.vat = double.tryParse(_vatController.text.replaceAll(',', '.'));
+      _editableExpense.amount =
+          double.tryParse(_amountController.text.replaceAll(',', '.'));
+      _editableExpense.vat =
+          double.tryParse(_vatController.text.replaceAll(',', '.'));
       _editableExpense.company = _companyController.text;
       _editableExpense.category = _categoryController.text;
     }
@@ -99,7 +109,8 @@ class _ValidationViewState extends State<ValidationView> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Note de frais enregistrée dans l\'historique.')),
+        const SnackBar(
+            content: Text('Note de frais enregistrée dans l\'historique.')),
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
@@ -111,15 +122,21 @@ class _ValidationViewState extends State<ValidationView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isMileageExpense ? 'Note Kilométrique' : 'Détail de la note'),
+        title: Text(isMileageExpense
+            ? 'Note Kilométrique'
+            : 'Détail de la note'),
         leading: widget.isInBatchMode
-            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).pop(_editableExpense))
+            ? IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(_editableExpense))
             : null,
         actions: [
           if (!isMileageExpense)
             IconButton(
               icon: Icon(_isEditing ? Icons.done : Icons.edit),
-              tooltip: _isEditing ? 'Terminer la modification' : 'Modifier les données de l\'IA',
+              tooltip: _isEditing
+                  ? 'Terminer la modification'
+                  : 'Modifier les données de l\'IA',
               onPressed: () {
                 setState(() {
                   if (_isEditing) {
@@ -145,7 +162,8 @@ class _ValidationViewState extends State<ValidationView> {
                     itemCount: _editableExpense.processedImagePaths.length,
                     itemBuilder: (context, index) => Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Image.file(File(_editableExpense.processedImagePaths[index])),
+                      child: Image.file(
+                          File(_editableExpense.processedImagePaths[index])),
                     ),
                   ),
                 ),
@@ -153,19 +171,33 @@ class _ValidationViewState extends State<ValidationView> {
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.only(top: 8.0),
-                    child: Text('Faites glisser pour voir les autres pages', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    child: Text(
+                        'Faites glisser pour voir les autres pages',
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
                   ),
                 ),
               const SizedBox(height: 24),
-
               _buildEditableDateField(_editableExpense.dateConfidence),
-              _buildEditableTextField(_amountController, 'Montant', _editableExpense.amountConfidence, const TextInputType.numberWithOptions(decimal: true)),
+              _buildEditableTextField(
+                  _amountController,
+                  'Montant',
+                  _editableExpense.amountConfidence,
+                  const TextInputType.numberWithOptions(decimal: true)),
               if (!isMileageExpense)
-                _buildEditableTextField(_vatController, 'TVA', _editableExpense.vatConfidence, const TextInputType.numberWithOptions(decimal: true)),
-              _buildEditableTextField(_companyController, isMileageExpense ? 'Motif du déplacement' : 'Entreprise (Marchand)', _editableExpense.companyConfidence),
+                _buildEditableTextField(
+                    _vatController,
+                    'TVA',
+                    _editableExpense.vatConfidence,
+                    const TextInputType.numberWithOptions(decimal: true)),
+              _buildEditableTextField(
+                  _companyController,
+                  isMileageExpense
+                      ? 'Motif du déplacement'
+                      : 'Entreprise (Marchand)',
+                  _editableExpense.companyConfidence),
               if (!isMileageExpense)
-                _buildEditableTextField(_categoryController, 'Catégorie', _editableExpense.categoryConfidence),
-
+                _buildEditableTextField(_categoryController, 'Catégorie',
+                    _editableExpense.categoryConfidence),
               const SizedBox(height: 16),
               _buildCommentField(),
               const SizedBox(height: 24),
@@ -176,13 +208,18 @@ class _ValidationViewState extends State<ValidationView> {
         ),
       ),
       bottomNavigationBar: Padding(
-        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + MediaQuery.of(context).padding.bottom),
+        padding: EdgeInsets.fromLTRB(
+            16, 8, 16, 16 + MediaQuery.of(context).padding.bottom),
         child: ElevatedButton.icon(
           onPressed: widget.isInBatchMode ? _onSaveForBatch : _onSaveAndClose,
-          icon: Icon(widget.isInBatchMode ? Icons.save : Icons.check_circle_outline),
-          label: Text(widget.isInBatchMode ? 'Sauvegarder les modifications' : 'Sauvegarder et Fermer'),
+          icon: Icon(
+              widget.isInBatchMode ? Icons.save : Icons.check_circle_outline),
+          label: Text(widget.isInBatchMode
+              ? 'Sauvegarder les modifications'
+              : 'Sauvegarder et Fermer'),
           style: ElevatedButton.styleFrom(
-              backgroundColor: widget.isInBatchMode ? Colors.blue : Colors.green,
+              backgroundColor:
+              widget.isInBatchMode ? Colors.blue : Colors.green,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               textStyle: const TextStyle(fontSize: 18)),
@@ -225,7 +262,8 @@ class _ValidationViewState extends State<ValidationView> {
     );
   }
 
-  Widget _buildEditableTextField(TextEditingController controller, String label, double? confidence, [TextInputType? keyboardType]) {
+  Widget _buildEditableTextField(TextEditingController controller, String label,
+      double? confidence, [TextInputType? keyboardType]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: _isEditing
@@ -249,7 +287,10 @@ class _ValidationViewState extends State<ValidationView> {
           return null;
         },
       )
-          : _buildInfoRow(label, controller.text.isEmpty ? 'N/A' : controller.text, confidence),
+          : _buildInfoRow(
+          label,
+          controller.text.isEmpty ? 'N/A' : controller.text,
+          confidence),
     );
   }
 
@@ -273,7 +314,9 @@ class _ValidationViewState extends State<ValidationView> {
         ),
         readOnly: true,
         onTap: () async {
-          DateTime initialDate = _dateFormat.tryParse(_dateController.text) ?? DateTime.now();
+          DateTime initialDate =
+              _dateFormat.tryParse(_dateController.text) ??
+                  DateTime.now();
           DateTime? pickedDate = await showDatePicker(
             context: context,
             initialDate: initialDate,
@@ -287,7 +330,9 @@ class _ValidationViewState extends State<ValidationView> {
           }
         },
       )
-          : _buildInfoRow('Date', _dateController.text.isEmpty ? 'N/A' : _dateController.text, confidence),
+          : _buildInfoRow('Date',
+          _dateController.text.isEmpty ? 'N/A' : _dateController.text,
+          confidence),
     );
   }
 
@@ -299,12 +344,16 @@ class _ValidationViewState extends State<ValidationView> {
         children: [
           Row(
             children: [
-              Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+              Text(label,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.grey)),
               _buildConfidenceIndicator(confidence),
             ],
           ),
           Flexible(
-              child: Text(value, style: Theme.of(context).textTheme.bodyLarge, textAlign: TextAlign.right)),
+              child: Text(value,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  textAlign: TextAlign.right)),
         ],
       ),
     );
@@ -317,11 +366,13 @@ class _ValidationViewState extends State<ValidationView> {
         border: OutlineInputBorder(),
       ),
       value: _selectedCompany,
-      onChanged: (String? newValue) => setState(() => _selectedCompany = newValue),
+      onChanged: (String? newValue) =>
+          setState(() => _selectedCompany = newValue),
       items: kCompanyList.map<DropdownMenuItem<String>>((String value) {
         return DropdownMenuItem<String>(value: value, child: Text(value));
       }).toList(),
-      validator: (value) => value == null ? 'Veuillez sélectionner une entreprise' : null,
+      validator: (value) =>
+      value == null ? 'Veuillez sélectionner une entreprise' : null,
     );
   }
 }

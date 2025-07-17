@@ -18,7 +18,8 @@ class CameraView extends ConsumerStatefulWidget {
   ConsumerState<CameraView> createState() => _CameraViewState();
 }
 
-class _CameraViewState extends ConsumerState<CameraView> with WidgetsBindingObserver {
+class _CameraViewState extends ConsumerState<CameraView>
+    with WidgetsBindingObserver {
   final CameraService _cameraService = CameraService();
   final List<String> _capturedImagePaths = [];
 
@@ -58,11 +59,14 @@ class _CameraViewState extends ConsumerState<CameraView> with WidgetsBindingObse
 
   void _navigateToProcessingView() {
     if (_capturedImagePaths.isEmpty) return;
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
-        builder: (context) => ProcessingView(imagePaths: _capturedImagePaths),
+        builder: (context) =>
+            ProcessingView(imagePaths: List.from(_capturedImagePaths)),
       ),
-    ).then((_) {
+    )
+        .then((_) {
       if (mounted) {
         setState(() {
           _capturedImagePaths.clear();
@@ -122,25 +126,36 @@ class _CameraViewState extends ConsumerState<CameraView> with WidgetsBindingObse
       foregroundColor: Colors.white,
       elevation: 0,
       actions: [
-        _AppBarAction(icon: Icons.bar_chart, tooltip: 'Statistiques', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const StatisticsView()))),
+        _AppBarAction(
+            icon: Icons.bar_chart,
+            tooltip: 'Statistiques',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => const StatisticsView()))),
         _AppBarAction(
           tooltip: 'Historique',
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HistoryView())),
+          onPressed: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (context) => const HistoryView())),
           child: badges.Badge(
             showBadge: unsentCount > 0,
-            badgeContent: Text('$unsentCount', style: const TextStyle(color: Colors.white)),
+            badgeContent:
+            Text('$unsentCount', style: const TextStyle(color: Colors.white)),
             position: badges.BadgePosition.topEnd(top: -8, end: -5),
             child: const Icon(Icons.history),
           ),
         ),
-        _AppBarAction(icon: Icons.settings, tooltip: 'Paramètres', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsView()))),
+        _AppBarAction(
+            icon: Icons.settings,
+            tooltip: 'Paramètres',
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const SettingsView()))),
         const SizedBox(width: 8),
       ],
     );
   }
 
   Widget _buildCameraBody() {
-    if (_cameraService.isCameraInitialized && _cameraService.cameraController != null) {
+    if (_cameraService.isCameraInitialized &&
+        _cameraService.cameraController != null) {
       return Stack(
         fit: StackFit.expand,
         children: [
@@ -178,11 +193,15 @@ class _CameraViewState extends ConsumerState<CameraView> with WidgetsBindingObse
             badges.Badge(
               showBadge: _capturedImagePaths.isNotEmpty,
               position: badges.BadgePosition.topEnd(top: -12, end: -12),
-              badgeContent: Text('${_capturedImagePaths.length}', style: const TextStyle(color: Colors.white)),
+              badgeContent: Text('${_capturedImagePaths.length}',
+                  style: const TextStyle(color: Colors.white)),
               child: _BottomControlButton(
-                onPressed: _capturedImagePaths.isNotEmpty ? _navigateToProcessingView : null,
+                onPressed: _capturedImagePaths.isNotEmpty
+                    ? _navigateToProcessingView
+                    : null,
                 icon: Icons.send,
-                color: _capturedImagePaths.isNotEmpty ? Colors.white : Colors.grey,
+                color:
+                _capturedImagePaths.isNotEmpty ? Colors.white : Colors.grey,
               ),
             ),
           ],
@@ -192,14 +211,14 @@ class _CameraViewState extends ConsumerState<CameraView> with WidgetsBindingObse
   }
 }
 
-
 class _AppBarAction extends StatelessWidget {
   final IconData? icon;
   final String tooltip;
   final VoidCallback onPressed;
   final Widget? child;
 
-  const _AppBarAction({this.icon, required this.tooltip, required this.onPressed, this.child});
+  const _AppBarAction(
+      {this.icon, required this.tooltip, required this.onPressed, this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +239,10 @@ class _BottomControlButton extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const _BottomControlButton({required this.onPressed, required this.icon, this.color = Colors.white});
+  const _BottomControlButton(
+      {required this.onPressed,
+        required this.icon,
+        this.color = Colors.white});
 
   @override
   Widget build(BuildContext context) {
