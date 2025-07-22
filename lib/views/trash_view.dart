@@ -22,7 +22,7 @@ class TrashView extends StatelessWidget {
                 context: context,
                 builder: (BuildContext ctx) => AlertDialog(
                   title: const Text('Vider la corbeille'),
-                  content: const Text('Voulez-vous vraiment supprimer définitivement toutes les notes de la corbeille ?'),
+                  content: const Text('Voulez-vous vraiment supprimer définitivement toutes les notes de la corbeille ? '),
                   actions: <Widget>[
                     TextButton(
                       onPressed: () => Navigator.of(ctx).pop(),
