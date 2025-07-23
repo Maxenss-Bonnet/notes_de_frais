@@ -113,12 +113,49 @@ class _CameraViewState extends ConsumerState<CameraView>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: _buildAppBar(context, ref),
+      appBar: const _CameraAppBar(),
       body: _buildCameraBody(),
     );
   }
 
-  AppBar _buildAppBar(BuildContext context, WidgetRef ref) {
+  Widget _buildCameraBody() {
+    if (_cameraService.isCameraInitialized &&
+        _cameraService.cameraController != null) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(child: CameraPreview(_cameraService.cameraController!)),
+          _BottomControls(
+            onPickFiles: _pickFiles,
+            onTakePicture: _takePicture,
+            capturedImagePaths: _capturedImagePaths,
+            onSend: _navigateToProcessingView,
+          ),
+          if (_capturedImagePaths.isNotEmpty)
+            Positioned(
+              bottom: 130,
+              left: 20,
+              child: FloatingActionButton.small(
+                onPressed: _removeLastPicture,
+                backgroundColor: Colors.red,
+                heroTag: 'undo_picture',
+                child: const Icon(Icons.undo),
+              ),
+            ),
+        ],
+      );
+    } else {
+      return const Center(child: CircularProgressIndicator());
+    }
+  }
+}
+
+// Widget extrait pour optimiser les reconstructions
+class _CameraAppBar extends ConsumerWidget implements PreferredSizeWidget {
+  const _CameraAppBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final unsentCount = ref.watch(unsentExpensesCountProvider);
     return AppBar(
       title: const Text('Prendre un justificatif'),
@@ -153,33 +190,26 @@ class _CameraViewState extends ConsumerState<CameraView>
     );
   }
 
-  Widget _buildCameraBody() {
-    if (_cameraService.isCameraInitialized &&
-        _cameraService.cameraController != null) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Center(child: CameraPreview(_cameraService.cameraController!)),
-          _buildBottomControls(),
-          if (_capturedImagePaths.isNotEmpty)
-            Positioned(
-              bottom: 130,
-              left: 20,
-              child: FloatingActionButton.small(
-                onPressed: _removeLastPicture,
-                backgroundColor: Colors.red,
-                heroTag: 'undo_picture',
-                child: const Icon(Icons.undo),
-              ),
-            ),
-        ],
-      );
-    } else {
-      return const Center(child: CircularProgressIndicator());
-    }
-  }
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
 
-  Widget _buildBottomControls() {
+// Widget extrait pour optimiser les reconstructions
+class _BottomControls extends StatelessWidget {
+  final VoidCallback onPickFiles;
+  final VoidCallback onTakePicture;
+  final VoidCallback onSend;
+  final List<String> capturedImagePaths;
+
+  const _BottomControls({
+    required this.onPickFiles,
+    required this.onTakePicture,
+    required this.onSend,
+    required this.capturedImagePaths,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
@@ -188,20 +218,17 @@ class _CameraViewState extends ConsumerState<CameraView>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _BottomControlButton(onPressed: _pickFiles, icon: Icons.photo_library),
-            _TakePictureButton(onTap: _takePicture),
+            _BottomControlButton(onPressed: onPickFiles, icon: Icons.photo_library),
+            _TakePictureButton(onTap: onTakePicture),
             badges.Badge(
-              showBadge: _capturedImagePaths.isNotEmpty,
+              showBadge: capturedImagePaths.isNotEmpty,
               position: badges.BadgePosition.topEnd(top: -12, end: -12),
-              badgeContent: Text('${_capturedImagePaths.length}',
+              badgeContent: Text('${capturedImagePaths.length}',
                   style: const TextStyle(color: Colors.white)),
               child: _BottomControlButton(
-                onPressed: _capturedImagePaths.isNotEmpty
-                    ? _navigateToProcessingView
-                    : null,
+                onPressed: capturedImagePaths.isNotEmpty ? onSend : null,
                 icon: Icons.send,
-                color:
-                _capturedImagePaths.isNotEmpty ? Colors.white : Colors.grey,
+                color: capturedImagePaths.isNotEmpty ? Colors.white : Colors.grey,
               ),
             ),
           ],

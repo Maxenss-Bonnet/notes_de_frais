@@ -60,6 +60,7 @@ class _AnimatedIconButtonState extends State<AnimatedIconButton>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
@@ -68,11 +69,12 @@ class _AnimatedIconButtonState extends State<AnimatedIconButton>
         message: widget.tooltip ?? '',
         child: ScaleTransition(
           scale: _scaleAnimation,
-          child: widget.child ?? Icon(
-            widget.icon,
-            color: widget.color,
-            size: widget.size,
-          ),
+          child: widget.child ??
+              Icon(
+                widget.icon,
+                color: widget.color,
+                size: widget.size,
+              ),
         ),
       ),
     );

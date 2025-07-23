@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notes_de_frais/services/settings_service.dart';
 import 'package:notes_de_frais/utils/constants.dart';
+import 'package:notes_de_frais/views/pin_code_view.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -49,7 +50,7 @@ class _SettingsViewState extends State<SettingsView> {
     _employeeLastNameController.text = employeeInfo['lastName']!;
     _employeeEmployerController.text = employeeInfo['employer']!;
     final savedCv = employeeInfo['fiscalHorsepower'];
-    if (savedCv != null && kCvOptions.contains(savedCv)) {
+    if (savedCv != null && kMileageRatesDefaults.keys.contains(savedCv)) {
       _selectedCv = savedCv;
     }
     setState(() => _isLoading = false);
@@ -104,63 +105,116 @@ class _SettingsViewState extends State<SettingsView> {
           key: _formKey,
           child: ListView(
             children: [
-              Text('Informations de l\'employé', style: Theme.of(context).textTheme.titleLarge),
+              Text('Informations de l\'employé',
+                  style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _employeeFirstNameController,
-                decoration: const InputDecoration(labelText: 'Prénom', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_outline)),
-                validator: (value) => value == null || value.isEmpty ? 'Veuillez entrer un prénom.' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Prénom',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_outline)),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Veuillez entrer un prénom.'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _employeeLastNameController,
-                decoration: const InputDecoration(labelText: 'Nom', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_outline)),
-                validator: (value) => value == null || value.isEmpty ? 'Veuillez entrer un nom.' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Nom',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_outline)),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Veuillez entrer un nom.'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _employeeEmailController,
-                decoration: const InputDecoration(labelText: 'Adresse e-mail personnelle', border: OutlineInputBorder(), prefixIcon: Icon(Icons.alternate_email)),
+                decoration: const InputDecoration(
+                    labelText: 'Adresse e-mail personnelle',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.alternate_email)),
                 keyboardType: TextInputType.emailAddress,
-                validator: (value) => (value == null || !value.contains('@')) ? 'Veuillez entrer une adresse e-mail valide.' : null,
+                validator: (value) =>
+                (value == null || !value.contains('@'))
+                    ? 'Veuillez entrer une adresse e-mail valide.'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _employeeEmployerController,
-                decoration: const InputDecoration(labelText: 'Employeur (Nom de l\'entreprise)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.business_center_outlined)),
-                validator: (value) => value == null || value.isEmpty ? 'Veuillez entrer un employeur.' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Employeur (Nom de l\'entreprise)',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.business_center_outlined)),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Veuillez entrer un employeur.'
+                    : null,
               ),
               const SizedBox(height: 24),
               DropdownButtonFormField<String>(
                 value: _selectedCv,
                 onChanged: (value) => setState(() => _selectedCv = value),
-                items: kCvOptions.map((cv) => DropdownMenuItem(value: cv, child: Text(cv))).toList(),
+                items: kMileageRatesDefaults.keys
+                    .map((cv) => DropdownMenuItem(value: cv, child: Text(cv)))
+                    .toList(),
                 decoration: const InputDecoration(
                   labelText: 'Puissance Fiscale (CV) du véhicule',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.directions_car_outlined),
                 ),
-                validator: (value) => value == null ? 'Veuillez sélectionner une puissance fiscale.' : null,
+                validator: (value) => value == null
+                    ? 'Veuillez sélectionner une puissance fiscale.'
+                    : null,
               ),
               const SizedBox(height: 32),
-              Text('Informations du destinataire (comptabilité)', style: Theme.of(context).textTheme.titleLarge),
+              Text('Informations du destinataire (comptabilité)',
+                  style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _recipientFirstNameController,
-                decoration: const InputDecoration(labelText: 'Prénom du destinataire', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_pin_outlined)),
+                decoration: const InputDecoration(
+                    labelText: 'Prénom du destinataire',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_pin_outlined)),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _recipientLastNameController,
-                decoration: const InputDecoration(labelText: 'Nom du destinataire', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_pin_outlined)),
+                decoration: const InputDecoration(
+                    labelText: 'Nom du destinataire',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_pin_outlined)),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _recipientEmailController,
-                decoration: const InputDecoration(labelText: 'Adresse e-mail du destinataire', border: OutlineInputBorder(), prefixIcon: Icon(Icons.email_outlined)),
+                decoration: const InputDecoration(
+                    labelText: 'Adresse e-mail du destinataire',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email_outlined)),
                 keyboardType: TextInputType.emailAddress,
-                validator: (value) => (value == null || !value.contains('@')) ? 'Veuillez entrer une adresse e-mail valide.' : null,
+                validator: (value) =>
+                (value == null || !value.contains('@'))
+                    ? 'Veuillez entrer une adresse e-mail valide.'
+                    : null,
               ),
+              const SizedBox(height: 24),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.settings_suggest_outlined),
+                title: const Text('Paramètres avancés'),
+                subtitle: const Text(
+                    'Gestion des sociétés et des taux kilométriques'),
+                onTap: () {
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => const PinCodeView(),
+                  ));
+                },
+              ),
+              const Divider(),
               const SizedBox(height: 32),
               ElevatedButton.icon(
                 onPressed: _saveSettings,

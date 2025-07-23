@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:notes_de_frais/controllers/expense_controller.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
-import 'package:notes_de_frais/utils/constants.dart';
+import 'package:notes_de_frais/providers/providers.dart';
 
-class ValidationView extends StatefulWidget {
+class ValidationView extends ConsumerStatefulWidget {
   final ExpenseModel expense;
   final bool isInBatchMode;
 
@@ -13,10 +14,10 @@ class ValidationView extends StatefulWidget {
       {super.key, required this.expense, this.isInBatchMode = false});
 
   @override
-  State<ValidationView> createState() => _ValidationViewState();
+  ConsumerState<ValidationView> createState() => _ValidationViewState();
 }
 
-class _ValidationViewState extends State<ValidationView> {
+class _ValidationViewState extends ConsumerState<ValidationView> {
   final ExpenseController _controller = ExpenseController();
   late ExpenseModel _editableExpense;
   String? _selectedCompany;
@@ -45,7 +46,8 @@ class _ValidationViewState extends State<ValidationView> {
         text: _editableExpense.amount?.toStringAsFixed(2) ?? '');
     _vatController =
         TextEditingController(text: _editableExpense.vat?.toString() ?? '0.0');
-    _companyController = TextEditingController(text: _editableExpense.company ?? '');
+    _companyController =
+        TextEditingController(text: _editableExpense.company ?? '');
     _categoryController =
         TextEditingController(text: _editableExpense.category ?? '');
     _commentController =
@@ -122,9 +124,8 @@ class _ValidationViewState extends State<ValidationView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isMileageExpense
-            ? 'Note Kilométrique'
-            : 'Détail de la note'),
+        title: Text(
+            isMileageExpense ? 'Note Kilométrique' : 'Détail de la note'),
         leading: widget.isInBatchMode
             ? IconButton(
             icon: const Icon(Icons.arrow_back),
@@ -171,8 +172,7 @@ class _ValidationViewState extends State<ValidationView> {
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.only(top: 8.0),
-                    child: Text(
-                        'Faites glisser pour voir les autres pages',
+                    child: Text('Faites glisser pour voir les autres pages',
                         style: TextStyle(fontSize: 12, color: Colors.grey)),
                   ),
                 ),
@@ -212,8 +212,9 @@ class _ValidationViewState extends State<ValidationView> {
             16, 8, 16, 16 + MediaQuery.of(context).padding.bottom),
         child: ElevatedButton.icon(
           onPressed: widget.isInBatchMode ? _onSaveForBatch : _onSaveAndClose,
-          icon: Icon(
-              widget.isInBatchMode ? Icons.save : Icons.check_circle_outline),
+          icon: Icon(widget.isInBatchMode
+              ? Icons.save
+              : Icons.check_circle_outline),
           label: Text(widget.isInBatchMode
               ? 'Sauvegarder les modifications'
               : 'Sauvegarder et Fermer'),
@@ -221,7 +222,8 @@ class _ValidationViewState extends State<ValidationView> {
               backgroundColor:
               widget.isInBatchMode ? Colors.blue : Colors.green,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               textStyle: const TextStyle(fontSize: 18)),
         ),
       ),
@@ -330,7 +332,8 @@ class _ValidationViewState extends State<ValidationView> {
           }
         },
       )
-          : _buildInfoRow('Date',
+          : _buildInfoRow(
+          'Date',
           _dateController.text.isEmpty ? 'N/A' : _dateController.text,
           confidence),
     );
@@ -360,19 +363,24 @@ class _ValidationViewState extends State<ValidationView> {
   }
 
   Widget _buildCompanyDropdown() {
-    return DropdownButtonFormField<String>(
-      decoration: const InputDecoration(
-        labelText: 'Associer à l\'entreprise',
-        border: OutlineInputBorder(),
+    final companyListAsync = ref.watch(companyListProvider);
+    return companyListAsync.when(
+      data: (companies) => DropdownButtonFormField<String>(
+        decoration: const InputDecoration(
+          labelText: 'Associer à l\'entreprise',
+          border: OutlineInputBorder(),
+        ),
+        value: _selectedCompany,
+        onChanged: (String? newValue) =>
+            setState(() => _selectedCompany = newValue),
+        items: companies.map<DropdownMenuItem<String>>((String value) {
+          return DropdownMenuItem<String>(value: value, child: Text(value));
+        }).toList(),
+        validator: (value) =>
+        value == null ? 'Veuillez sélectionner une entreprise' : null,
       ),
-      value: _selectedCompany,
-      onChanged: (String? newValue) =>
-          setState(() => _selectedCompany = newValue),
-      items: kCompanyList.map<DropdownMenuItem<String>>((String value) {
-        return DropdownMenuItem<String>(value: value, child: Text(value));
-      }).toList(),
-      validator: (value) =>
-      value == null ? 'Veuillez sélectionner une entreprise' : null,
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => const Text('Erreur de chargement des sociétés'),
     );
   }
 }

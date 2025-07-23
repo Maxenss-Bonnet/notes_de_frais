@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:notes_de_frais/models/task_model.dart';
 import 'package:notes_de_frais/services/background_task_service.dart';
+import 'package:notes_de_frais/services/settings_service.dart';
 import 'package:notes_de_frais/services/statistics_service.dart';
 import 'package:notes_de_frais/services/storage_service.dart';
+import 'package:notes_de_frais/utils/constants.dart';
 
 // --- Services ---
 
@@ -11,38 +13,58 @@ final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
 });
 
+final settingsServiceProvider = Provider<SettingsService>((ref) {
+  return SettingsService();
+});
+
 // --- Fournisseurs de Données de Base ---
 
-// Ce provider fournit un flux direct des événements de la base de données.
-// Il sert de "déclencheur" pour les autres providers.
 final expenseBoxStreamProvider = StreamProvider.autoDispose<BoxEvent>((ref) {
   final storageService = ref.watch(storageServiceProvider);
   return storageService.getExpenseBox().watch();
 });
 
+// --- Fournisseurs de Données de Configuration ---
+
+final companyListProvider = FutureProvider<List<String>>((ref) async {
+  final settingsService = ref.watch(settingsServiceProvider);
+  final customList = await settingsService.getCompanyList();
+  if (customList.isNotEmpty) {
+    return customList;
+  }
+  return kCompanyListDefaults;
+});
+
+final mileageRatesProvider = FutureProvider<Map<String, double>>((ref) async {
+  final settingsService = ref.watch(settingsServiceProvider);
+  final customRates = await settingsService.getMileageRates();
+  if (customRates.isNotEmpty) {
+    return customRates;
+  }
+  return kMileageRatesDefaults;
+});
+
+final cvOptionsProvider = FutureProvider<List<String>>((ref) async {
+  final rates = await ref.watch(mileageRatesProvider.future);
+  return rates.keys.toList();
+});
+
 
 // --- Fournisseurs de Données Calculées ---
 
-// Provider pour le compteur de notes non envoyées.
 final unsentExpensesCountProvider = StateProvider<int>((ref) {
-  // Il écoute le flux de la base de données. Chaque fois qu'un événement se produit,
-  // ce provider est reconstruit.
   ref.watch(expenseBoxStreamProvider);
-  // En se reconstruisant, il récupère la valeur la plus récente du service de stockage.
   return ref.watch(storageServiceProvider).getUnsentExpensesCount();
 });
 
 
 // --- Fournisseurs de Statistiques ---
 
-// Ce provider écoute également le flux de la base de données.
 final statisticsProvider = Provider((ref) {
   ref.watch(expenseBoxStreamProvider);
   return StatisticsService();
 });
 
-// Ces providers granulaires sont reconstruits automatiquement
-// car ils dépendent de 'statisticsProvider', qui est lui-même mis à jour par le stream.
 final expensesThisWeekCountProvider = Provider<int>((ref) {
   return ref.watch(statisticsProvider).getExpensesThisWeekCount();
 });
