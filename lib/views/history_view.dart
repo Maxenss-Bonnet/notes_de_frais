@@ -35,7 +35,7 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
     _loadMoreExpenses();
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 200 &&
+              _scrollController.position.maxScrollExtent - 200 &&
           !_isLoading) {
         _loadMoreExpenses();
       }
@@ -64,8 +64,7 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 500));
-    final newExpenses =
-    _storageService.getExpenses(page: _page, limit: _limit);
+    final newExpenses = _storageService.getExpenses(page: _page, limit: _limit);
     if (newExpenses.length < _limit) {
       _hasMore = false;
     }
@@ -91,7 +90,7 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
 
   void _toggleSelectAllUnsent() {
     final unsentKeys =
-    _expenses.where((e) => !e.isSent).map((e) => e.key).toSet();
+        _expenses.where((e) => !e.isSent).map((e) => e.key).toSet();
     final allUnsentSelected =
         _selectedKeys.containsAll(unsentKeys) && unsentKeys.isNotEmpty;
 
@@ -106,14 +105,14 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
 
   void _sendSelectedExpenses() {
     final selectedExpenses =
-    _expenses.where((e) => _selectedKeys.contains(e.key)).toList();
+        _expenses.where((e) => _selectedKeys.contains(e.key)).toList();
     if (selectedExpenses.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Veuillez sélectionner au moins une note à envoyer.')));
       return;
     }
     final task =
-    TaskModel(type: TaskType.sendExpenseBatch, payload: selectedExpenses);
+        TaskModel(type: TaskType.sendExpenseBatch, payload: selectedExpenses);
     _taskQueueService.enqueueTask(task);
 
     ref.read(backgroundTaskServiceProvider).processQueue();
@@ -158,8 +157,8 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
             onPressed: () {
               Navigator.of(context)
                   .push(
-                MaterialPageRoute(builder: (context) => const TrashView()),
-              )
+                    MaterialPageRoute(builder: (context) => const TrashView()),
+                  )
                   .then((_) => _refreshHistory());
             },
           )
@@ -167,47 +166,47 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
       ),
       body: _expenses.isEmpty && !_isLoading
           ? const Center(
-          child: Text('Aucune note de frais dans l\'historique.',
-              style: TextStyle(fontSize: 16)))
+              child: Text('Aucune note de frais dans l\'historique.',
+                  style: TextStyle(fontSize: 16)))
           : RefreshIndicator(
-        onRefresh: _refreshHistory,
-        child: ListView.builder(
-          controller: _scrollController,
-          itemCount: _expenses.length + (_hasMore ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index == _expenses.length) {
-              return const Center(
-                  child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator()));
-            }
-            final expense = _expenses[index];
-            return _ExpenseHistoryTile(
-              expense: expense,
-              isSelected: _selectedKeys.contains(expense.key),
-              onSelectionChanged: (isSelected) =>
-                  _onSelectionChanged(isSelected, expense),
-              onTap: () async {
-                final result = await Navigator.of(context)
-                    .push<ExpenseModel>(
-                  MaterialPageRoute(
-                      builder: (context) => ValidationView(
-                          expense: expense, isInBatchMode: true)),
-                );
-                if (result != null && mounted) {
-                  setState(() => _expenses[index] = result);
-                }
-              },
-              onDismissed: () {
-                _storageService.moveToTrash(expense.key);
-                if (mounted) {
-                  setState(() => _expenses.removeAt(index));
-                }
-              },
-            );
-          },
-        ),
-      ),
+              onRefresh: _refreshHistory,
+              child: ListView.builder(
+                controller: _scrollController,
+                itemCount: _expenses.length + (_hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == _expenses.length) {
+                    return const Center(
+                        child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: CircularProgressIndicator()));
+                  }
+                  final expense = _expenses[index];
+                  return _ExpenseHistoryTile(
+                    expense: expense,
+                    isSelected: _selectedKeys.contains(expense.key),
+                    onSelectionChanged: (isSelected) =>
+                        _onSelectionChanged(isSelected, expense),
+                    onTap: () async {
+                      final result =
+                          await Navigator.of(context).push<ExpenseModel>(
+                        MaterialPageRoute(
+                            builder: (context) => ValidationView(
+                                expense: expense, isInBatchMode: true)),
+                      );
+                      if (result != null && mounted) {
+                        setState(() => _expenses[index] = result);
+                      }
+                    },
+                    onDismissed: () {
+                      _storageService.moveToTrash(expense.key);
+                      if (mounted) {
+                        setState(() => _expenses.removeAt(index));
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -223,9 +222,9 @@ class _HistoryViewState extends ConsumerState<HistoryView> {
             onPressed: () {
               Navigator.of(context)
                   .push(
-                MaterialPageRoute(
-                    builder: (context) => const AddMileageExpenseView()),
-              )
+                    MaterialPageRoute(
+                        builder: (context) => const AddMileageExpenseView()),
+                  )
                   .then((_) => _refreshHistory());
             },
             label: const Text('Note kilométrique'),
@@ -257,57 +256,60 @@ class _ExpenseHistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd MMMM yyyy', 'fr_FR');
-    final currencyFormat =
-    NumberFormat.currency(locale: 'fr_FR', symbol: '€');
+    final currencyFormat = NumberFormat.currency(locale: 'fr_FR', symbol: '€');
     final isMileage = expense.category == 'Frais Kilométriques';
 
-    return Dismissible(
-      key: Key(expense.key.toString()),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDismissed(),
-      background: Container(
-        color: Colors.red,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: expense.isSent ? Colors.grey.shade200 : Colors.white,
-        child: ListTile(
-          contentPadding: const EdgeInsets.fromLTRB(4.0, 8.0, 16.0, 8.0),
-          leading: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Checkbox(
-                value: isSelected,
-                onChanged: expense.isSent ? null : onSelectionChanged,
-              ),
-              Icon(isMileage
-                  ? Icons.directions_car_outlined
-                  : Icons.receipt_long_outlined),
-              const SizedBox(width: 4),
-            ],
+    return RepaintBoundary(
+      child: Dismissible(
+        key: Key(expense.key.toString()),
+        direction: DismissDirection.endToStart,
+        onDismissed: (_) => onDismissed(),
+        background: Container(
+          color: Colors.red,
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: const Icon(Icons.delete, color: Colors.white),
+        ),
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: expense.isSent ? Colors.grey.shade200 : Colors.white,
+          child: ListTile(
+            contentPadding: const EdgeInsets.fromLTRB(4.0, 8.0, 16.0, 8.0),
+            leading: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Checkbox(
+                  value: isSelected,
+                  onChanged: expense.isSent ? null : onSelectionChanged,
+                ),
+                Icon(isMileage
+                    ? Icons.directions_car_outlined
+                    : Icons.receipt_long_outlined),
+                const SizedBox(width: 4),
+              ],
+            ),
+            title: Text(
+              expense.company ?? 'Motif ou Fournisseur inconnu',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+                '${expense.date != null ? dateFormat.format(expense.date!) : 'Date inconnue'}\nAssocié à : ${expense.associatedTo ?? 'N/A'}'),
+            trailing: expense.isSent
+                ? const Tooltip(
+                    message: 'Envoyée',
+                    child: Icon(Icons.check_circle, color: Colors.green))
+                : Text(
+                    expense.amount != null
+                        ? currencyFormat.format(expense.amount)
+                        : 'N/A',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                        fontSize: 16),
+                  ),
+            isThreeLine: true,
+            onTap: expense.isSent ? null : onTap,
           ),
-          title: Text(expense.company ?? 'Motif ou Fournisseur inconnu',
-              style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(
-              '${expense.date != null ? dateFormat.format(expense.date!) : 'Date inconnue'}\nAssocié à : ${expense.associatedTo ?? 'N/A'}'),
-          trailing: expense.isSent
-              ? const Tooltip(
-              message: 'Envoyée',
-              child: Icon(Icons.check_circle, color: Colors.green))
-              : Text(
-            expense.amount != null
-                ? currencyFormat.format(expense.amount)
-                : 'N/A',
-            style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-                fontSize: 16),
-          ),
-          isThreeLine: true,
-          onTap: expense.isSent ? null : onTap,
         ),
       ),
     );
@@ -362,8 +364,8 @@ class __ProgressDialogAnimatorState
           next.executionStatus == TaskExecutionStatus.error) {
         _controller
             .animateTo(1.0,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeIn)
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeIn)
             .whenComplete(() {
           Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted) {

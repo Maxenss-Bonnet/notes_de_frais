@@ -124,12 +124,12 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-            isMileageExpense ? 'Note Kilométrique' : 'Détail de la note'),
+        title:
+            Text(isMileageExpense ? 'Note Kilométrique' : 'Détail de la note'),
         leading: widget.isInBatchMode
             ? IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(_editableExpense))
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(_editableExpense))
             : null,
         actions: [
           if (!isMileageExpense)
@@ -156,28 +156,11 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_editableExpense.processedImagePaths.isNotEmpty)
-                SizedBox(
-                  height: 200,
-                  child: PageView.builder(
-                    itemCount: _editableExpense.processedImagePaths.length,
-                    itemBuilder: (context, index) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Image.file(
-                          File(_editableExpense.processedImagePaths[index])),
-                    ),
-                  ),
-                ),
-              if (_editableExpense.processedImagePaths.length > 1)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 8.0),
-                    child: Text('Faites glisser pour voir les autres pages',
-                        style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  ),
-                ),
+              _ValidationImageSection(
+                  imagePaths: _editableExpense.processedImagePaths),
               const SizedBox(height: 24),
-              _buildEditableDateField(_editableExpense.dateConfidence),
+              _buildEditableDateField(
+                  (_editableExpense.date ?? DateTime.now())),
               _buildEditableTextField(
                   _amountController,
                   'Montant',
@@ -212,18 +195,16 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
             16, 8, 16, 16 + MediaQuery.of(context).padding.bottom),
         child: ElevatedButton.icon(
           onPressed: widget.isInBatchMode ? _onSaveForBatch : _onSaveAndClose,
-          icon: Icon(widget.isInBatchMode
-              ? Icons.save
-              : Icons.check_circle_outline),
+          icon: Icon(
+              widget.isInBatchMode ? Icons.save : Icons.check_circle_outline),
           label: Text(widget.isInBatchMode
               ? 'Sauvegarder les modifications'
               : 'Sauvegarder et Fermer'),
           style: ElevatedButton.styleFrom(
               backgroundColor:
-              widget.isInBatchMode ? Colors.blue : Colors.green,
+                  widget.isInBatchMode ? Colors.blue : Colors.green,
               foregroundColor: Colors.white,
-              padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               textStyle: const TextStyle(fontSize: 18)),
         ),
       ),
@@ -264,78 +245,76 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
     );
   }
 
-  Widget _buildEditableTextField(TextEditingController controller, String label,
-      double? confidence, [TextInputType? keyboardType]) {
+  Widget _buildEditableTextField(
+      TextEditingController controller, String label, double? confidence,
+      [TextInputType? keyboardType]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: _isEditing
           ? TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-          suffixIcon: _buildConfidenceIndicator(confidence),
-        ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Ce champ ne peut pas être vide';
-          }
-          if (keyboardType?.toString().contains('number') ?? false) {
-            if (double.tryParse(value.replaceAll(',', '.')) == null) {
-              return 'Veuillez entrer un nombre valide.';
-            }
-          }
-          return null;
-        },
-      )
-          : _buildInfoRow(
-          label,
-          controller.text.isEmpty ? 'N/A' : controller.text,
-          confidence),
+              controller: controller,
+              keyboardType: keyboardType,
+              decoration: InputDecoration(
+                labelText: label,
+                border: const OutlineInputBorder(),
+                suffixIcon: _buildConfidenceIndicator(confidence),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Ce champ ne peut pas être vide';
+                }
+                if (keyboardType?.toString().contains('number') ?? false) {
+                  if (double.tryParse(value.replaceAll(',', '.')) == null) {
+                    return 'Veuillez entrer un nombre valide.';
+                  }
+                }
+                return null;
+              },
+            )
+          : _buildInfoRow(label,
+              controller.text.isEmpty ? 'N/A' : controller.text, confidence),
     );
   }
 
-  Widget _buildEditableDateField(double? confidence) {
+  Widget _buildEditableDateField(DateTime date) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: _isEditing
           ? TextFormField(
-        controller: _dateController,
-        decoration: InputDecoration(
-          labelText: 'Date',
-          border: const OutlineInputBorder(),
-          suffixIcon: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildConfidenceIndicator(confidence),
-              const Icon(Icons.calendar_today),
-              const SizedBox(width: 8),
-            ],
-          ),
-        ),
-        readOnly: true,
-        onTap: () async {
-          DateTime initialDate =
-              _dateFormat.tryParse(_dateController.text) ??
-                  DateTime.now();
-          DateTime? pickedDate = await showDatePicker(
-            context: context,
-            initialDate: initialDate,
-            firstDate: DateTime(2000),
-            lastDate: DateTime.now().add(const Duration(days: 365)),
-          );
-          if (pickedDate != null) {
-            setState(() {
-              _dateController.text = _dateFormat.format(pickedDate);
-            });
-          }
-        },
-      )
+              controller: _dateController,
+              decoration: InputDecoration(
+                labelText: 'Date',
+                border: const OutlineInputBorder(),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildConfidenceIndicator(
+                        null), // Confidence is not available here
+                    const Icon(Icons.calendar_today),
+                    const SizedBox(width: 8),
+                  ],
+                ),
+              ),
+              readOnly: true,
+              onTap: () async {
+                DateTime initialDate = date;
+                DateTime? pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: initialDate,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                setState(() {
+                  if (pickedDate != null) {
+                    _dateController.text = _dateFormat.format(pickedDate);
+                  }
+                });
+              },
+            )
           : _buildInfoRow(
-          'Date',
-          _dateController.text.isEmpty ? 'N/A' : _dateController.text,
-          confidence),
+              'Date',
+              _dateController.text.isEmpty ? 'N/A' : _dateController.text,
+              null), // Confidence is not available here
     );
   }
 
@@ -377,10 +356,43 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
           return DropdownMenuItem<String>(value: value, child: Text(value));
         }).toList(),
         validator: (value) =>
-        value == null ? 'Veuillez sélectionner une entreprise' : null,
+            value == null ? 'Veuillez sélectionner une entreprise' : null,
       ),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, stack) => const Text('Erreur de chargement des sociétés'),
+    );
+  }
+}
+
+class _ValidationImageSection extends StatelessWidget {
+  final List<String> imagePaths;
+  const _ValidationImageSection({required this.imagePaths});
+  @override
+  Widget build(BuildContext context) {
+    if (imagePaths.isEmpty) return const SizedBox.shrink();
+    return RepaintBoundary(
+      child: Column(
+        children: [
+          SizedBox(
+            height: 200,
+            child: PageView.builder(
+              itemCount: imagePaths.length,
+              itemBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Image.file(File(imagePaths[index])),
+              ),
+            ),
+          ),
+          if (imagePaths.length > 1)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text('Faites glisser pour voir les autres pages',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

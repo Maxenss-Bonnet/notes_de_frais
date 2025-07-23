@@ -100,133 +100,204 @@ class _SettingsViewState extends State<SettingsView> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              Text('Informations de l\'employé',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _employeeFirstNameController,
-                decoration: const InputDecoration(
-                    labelText: 'Prénom',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person_outline)),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Veuillez entrer un prénom.'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _employeeLastNameController,
-                decoration: const InputDecoration(
-                    labelText: 'Nom',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person_outline)),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Veuillez entrer un nom.'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _employeeEmailController,
-                decoration: const InputDecoration(
-                    labelText: 'Adresse e-mail personnelle',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.alternate_email)),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) =>
-                (value == null || !value.contains('@'))
-                    ? 'Veuillez entrer une adresse e-mail valide.'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _employeeEmployerController,
-                decoration: const InputDecoration(
-                    labelText: 'Employeur (Nom de l\'entreprise)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.business_center_outlined)),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Veuillez entrer un employeur.'
-                    : null,
-              ),
-              const SizedBox(height: 24),
-              DropdownButtonFormField<String>(
-                value: _selectedCv,
-                onChanged: (value) => setState(() => _selectedCv = value),
-                items: kMileageRatesDefaults.keys
-                    .map((cv) => DropdownMenuItem(value: cv, child: Text(cv)))
-                    .toList(),
-                decoration: const InputDecoration(
-                  labelText: 'Puissance Fiscale (CV) du véhicule',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.directions_car_outlined),
-                ),
-                validator: (value) => value == null
-                    ? 'Veuillez sélectionner une puissance fiscale.'
-                    : null,
-              ),
-              const SizedBox(height: 32),
-              Text('Informations du destinataire (comptabilité)',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _recipientFirstNameController,
-                decoration: const InputDecoration(
-                    labelText: 'Prénom du destinataire',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person_pin_outlined)),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _recipientLastNameController,
-                decoration: const InputDecoration(
-                    labelText: 'Nom du destinataire',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person_pin_outlined)),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _recipientEmailController,
-                decoration: const InputDecoration(
-                    labelText: 'Adresse e-mail du destinataire',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email_outlined)),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) =>
-                (value == null || !value.contains('@'))
-                    ? 'Veuillez entrer une adresse e-mail valide.'
-                    : null,
-              ),
-              const SizedBox(height: 24),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.settings_suggest_outlined),
-                title: const Text('Paramètres avancés'),
-                subtitle: const Text(
-                    'Gestion des sociétés et des taux kilométriques'),
-                onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) => const PinCodeView(),
-                  ));
-                },
-              ),
-              const Divider(),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _saveSettings,
-                icon: const Icon(Icons.save),
-                label: const Text('Enregistrer'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  children: [
+                    _EmployeeSection(
+                      firstNameController: _employeeFirstNameController,
+                      lastNameController: _employeeLastNameController,
+                      emailController: _employeeEmailController,
+                      employerController: _employeeEmployerController,
+                      selectedCv: _selectedCv,
+                      onCvChanged: (value) =>
+                          setState(() => _selectedCv = value),
+                      mileageRatesDefaults: kMileageRatesDefaults,
+                    ),
+                    const SizedBox(height: 32),
+                    _RecipientSection(
+                      firstNameController: _recipientFirstNameController,
+                      lastNameController: _recipientLastNameController,
+                      emailController: _recipientEmailController,
+                    ),
+                    const SizedBox(height: 24),
+                    const Divider(),
+                    RepaintBoundary(
+                      child: ListTile(
+                        leading: const Icon(Icons.settings_suggest_outlined),
+                        title: const Text('Paramètres avancés'),
+                        subtitle: const Text(
+                            'Gestion des sociétés et des taux kilométriques'),
+                        onTap: () {
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (context) => const PinCodeView(),
+                          ));
+                        },
+                      ),
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 32),
+                    RepaintBoundary(
+                      child: ElevatedButton.icon(
+                        onPressed: _saveSettings,
+                        icon: const Icon(Icons.save),
+                        label: const Text('Enregistrer'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
+    );
+  }
+}
+
+class _EmployeeSection extends StatelessWidget {
+  final TextEditingController firstNameController;
+  final TextEditingController lastNameController;
+  final TextEditingController emailController;
+  final TextEditingController employerController;
+  final String? selectedCv;
+  final ValueChanged<String?> onCvChanged;
+  final Map<String, dynamic> mileageRatesDefaults;
+
+  const _EmployeeSection({
+    required this.firstNameController,
+    required this.lastNameController,
+    required this.emailController,
+    required this.employerController,
+    required this.selectedCv,
+    required this.onCvChanged,
+    required this.mileageRatesDefaults,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Informations de l\'employé',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: firstNameController,
+            decoration: const InputDecoration(
+                labelText: 'Prénom',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_outline)),
+            validator: (value) => value == null || value.isEmpty
+                ? 'Veuillez entrer un prénom.'
+                : null,
           ),
-        ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: lastNameController,
+            decoration: const InputDecoration(
+                labelText: 'Nom',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_outline)),
+            validator: (value) => value == null || value.isEmpty
+                ? 'Veuillez entrer un nom.'
+                : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: emailController,
+            decoration: const InputDecoration(
+                labelText: 'Adresse e-mail personnelle',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.alternate_email)),
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) => (value == null || !value.contains('@'))
+                ? 'Veuillez entrer une adresse e-mail valide.'
+                : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: employerController,
+            decoration: const InputDecoration(
+                labelText: 'Employeur (Nom de l\'entreprise)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.business_center_outlined)),
+            validator: (value) => value == null || value.isEmpty
+                ? 'Veuillez entrer un employeur.'
+                : null,
+          ),
+          const SizedBox(height: 24),
+          DropdownButtonFormField<String>(
+            value: selectedCv,
+            onChanged: onCvChanged,
+            items: mileageRatesDefaults.keys
+                .map((cv) => DropdownMenuItem(value: cv, child: Text(cv)))
+                .toList(),
+            decoration: const InputDecoration(
+              labelText: 'Puissance Fiscale (CV) du véhicule',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.directions_car_outlined),
+            ),
+            validator: (value) => value == null
+                ? 'Veuillez sélectionner une puissance fiscale.'
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecipientSection extends StatelessWidget {
+  final TextEditingController firstNameController;
+  final TextEditingController lastNameController;
+  final TextEditingController emailController;
+
+  const _RecipientSection({
+    required this.firstNameController,
+    required this.lastNameController,
+    required this.emailController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Informations du destinataire (comptabilité)',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: firstNameController,
+            decoration: const InputDecoration(
+                labelText: 'Prénom du destinataire',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_pin_outlined)),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: lastNameController,
+            decoration: const InputDecoration(
+                labelText: 'Nom du destinataire',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_pin_outlined)),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: emailController,
+            decoration: const InputDecoration(
+                labelText: 'Adresse e-mail du destinataire',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email_outlined)),
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) => (value == null || !value.contains('@'))
+                ? 'Veuillez entrer une adresse e-mail valide.'
+                : null,
+          ),
+        ],
       ),
     );
   }

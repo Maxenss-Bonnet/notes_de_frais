@@ -27,8 +27,7 @@ class _CompanySettingsViewState extends ConsumerState<CompanySettingsView> {
         title: const Text('Nouvelle Société'),
         content: TextField(
           controller: controller,
-          decoration:
-          const InputDecoration(hintText: 'Nom de la société'),
+          decoration: const InputDecoration(hintText: 'Nom de la société'),
         ),
         actions: [
           TextButton(
@@ -84,19 +83,10 @@ class _CompanySettingsViewState extends ConsumerState<CompanySettingsView> {
             itemCount: _companies.length,
             itemBuilder: (context, index) {
               final company = _companies[index];
-              return Dismissible(
-                key: Key(company + index.toString()),
-                direction: DismissDirection.endToStart,
-                onDismissed: (_) => _removeCompany(index),
-                background: Container(
-                  color: Colors.red,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                child: ListTile(
-                  title: Text(company),
-                ),
+              return _CompanyTile(
+                company: company,
+                onDismissed: () => _removeCompany(index),
+                keyTile: Key(company + index.toString()),
               );
             },
           );
@@ -108,6 +98,38 @@ class _CompanySettingsViewState extends ConsumerState<CompanySettingsView> {
         onPressed: _addCompany,
         tooltip: 'Ajouter une société',
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class _CompanyTile extends StatelessWidget {
+  final String company;
+  final VoidCallback onDismissed;
+  final Key keyTile;
+
+  const _CompanyTile({
+    required this.company,
+    required this.onDismissed,
+    required this.keyTile,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Dismissible(
+        key: keyTile,
+        direction: DismissDirection.endToStart,
+        onDismissed: (_) => onDismissed(),
+        background: Container(
+          color: Colors.red,
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: const Icon(Icons.delete, color: Colors.white),
+        ),
+        child: ListTile(
+          title: Text(company),
+        ),
       ),
     );
   }

@@ -22,7 +22,8 @@ class TrashView extends StatelessWidget {
                 context: context,
                 builder: (BuildContext ctx) => AlertDialog(
                   title: const Text('Vider la corbeille'),
-                  content: const Text('Voulez-vous vraiment supprimer définitivement toutes les notes de la corbeille ? '),
+                  content: const Text(
+                      'Voulez-vous vraiment supprimer définitivement toutes les notes de la corbeille ? '),
                   actions: <Widget>[
                     TextButton(
                       onPressed: () => Navigator.of(ctx).pop(),
@@ -33,7 +34,8 @@ class TrashView extends StatelessWidget {
                         storageService.emptyTrash();
                         Navigator.of(ctx).pop();
                       },
-                      child: const Text('Vider', style: TextStyle(color: Colors.red)),
+                      child: const Text('Vider',
+                          style: TextStyle(color: Colors.red)),
                     ),
                   ],
                 ),
@@ -45,7 +47,8 @@ class TrashView extends StatelessWidget {
       body: ValueListenableBuilder<Box<ExpenseModel>>(
         valueListenable: storageService.getExpenseBox().listenable(),
         builder: (context, box, _) {
-          final trashedExpenses = box.values.where((e) => e.isInTrash).toList().reversed.toList();
+          final trashedExpenses =
+              box.values.where((e) => e.isInTrash).toList().reversed.toList();
 
           if (trashedExpenses.isEmpty) {
             return const Center(child: Text('La corbeille est vide.'));
@@ -55,23 +58,43 @@ class TrashView extends StatelessWidget {
             itemCount: trashedExpenses.length,
             itemBuilder: (context, index) {
               final expense = trashedExpenses[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  title: Text(expense.company ?? 'Note de frais'),
-                  subtitle: const Text('Supprimée'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.restore_from_trash),
-                    tooltip: 'Restaurer',
-                    onPressed: () {
-                      storageService.restoreFromTrash(expense.key);
-                    },
-                  ),
-                ),
+              return _TrashExpenseTile(
+                expense: expense,
+                onRestore: () {
+                  storageService.restoreFromTrash(expense.key);
+                },
               );
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _TrashExpenseTile extends StatelessWidget {
+  final ExpenseModel expense;
+  final VoidCallback onRestore;
+
+  const _TrashExpenseTile({
+    required this.expense,
+    required this.onRestore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: ListTile(
+          title: Text(expense.company ?? 'Note de frais'),
+          subtitle: const Text('Supprimée'),
+          trailing: IconButton(
+            icon: const Icon(Icons.restore_from_trash),
+            tooltip: 'Restaurer',
+            onPressed: onRestore,
+          ),
+        ),
       ),
     );
   }
