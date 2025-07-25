@@ -1,0 +1,21 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Dart",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "notes_de_frais (Flutter 23078PND5G)",
+            "program": "lib/main.dart",
+            "deviceId": "QOUC7HMNQOP7E6RO",
+            "request": "launch",
+            "type": "dart"
+        }
+    ]
+}

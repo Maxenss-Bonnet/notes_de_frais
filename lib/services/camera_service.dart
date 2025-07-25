@@ -26,7 +26,7 @@ class CameraService {
       if (cameras.isNotEmpty) {
         _cameraController = CameraController(
           cameras.first,
-          ResolutionPreset.high,
+          ResolutionPreset.medium,
           enableAudio: false,
           imageFormatGroup: ImageFormatGroup.yuv420,
         );
@@ -89,14 +89,17 @@ class CameraService {
 
     final format = InputImageFormatValue.fromRawValue(image.format.raw);
     if (format == null ||
-        (defaultTargetPlatform == TargetPlatform.android && format != InputImageFormat.nv21) ||
-        (defaultTargetPlatform == TargetPlatform.iOS && format != InputImageFormat.bgra8888)) {
+        (defaultTargetPlatform == TargetPlatform.android &&
+            format != InputImageFormat.nv21) ||
+        (defaultTargetPlatform == TargetPlatform.iOS &&
+            format != InputImageFormat.bgra8888)) {
       return null;
     }
 
-    if (image.planes.length != 1 && defaultTargetPlatform == TargetPlatform.android) return null;
-    if (image.planes.length != 1 && defaultTargetPlatform == TargetPlatform.iOS) return null;
-
+    if (image.planes.length != 1 &&
+        defaultTargetPlatform == TargetPlatform.android) return null;
+    if (image.planes.length != 1 && defaultTargetPlatform == TargetPlatform.iOS)
+      return null;
 
     final plane = image.planes.first;
     return InputImage.fromBytes(
@@ -109,7 +112,6 @@ class CameraService {
       ),
     );
   }
-
 
   Future<XFile?> takePicture() async {
     if (_cameraController == null || !_isCameraInitialized) return null;

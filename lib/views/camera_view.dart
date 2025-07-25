@@ -55,12 +55,14 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
   void _navigateToProcessingView() {
     if (_capturedImagePaths.isEmpty) return;
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
         builder: (context) => ProcessingView(imagePaths: _capturedImagePaths),
       ),
-    ).then((_) {
-      if(mounted) {
+    )
+        .then((_) {
+      if (mounted) {
         setState(() {
           _capturedImagePaths.clear();
         });
@@ -114,15 +116,27 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: AnimatedIconButton(icon: Icons.bar_chart, tooltip: 'Statistiques', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const StatisticsView()))),
+            child: AnimatedIconButton(
+                icon: Icons.bar_chart,
+                tooltip: 'Statistiques',
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => const StatisticsView()))),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: AnimatedIconButton(icon: Icons.history, tooltip: 'Historique', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HistoryView()))),
+            child: AnimatedIconButton(
+                icon: Icons.history,
+                tooltip: 'Historique',
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => const HistoryView()))),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: AnimatedIconButton(icon: Icons.settings, tooltip: 'Paramètres', onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsView()))),
+            child: AnimatedIconButton(
+                icon: Icons.settings,
+                tooltip: 'Paramètres',
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => const SettingsView()))),
           ),
         ],
       ),
@@ -131,11 +145,27 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   Widget _buildCameraPreview() {
-    if (_cameraService.isCameraInitialized && _cameraService.cameraController != null) {
+    if (_cameraService.isCameraInitialized &&
+        _cameraService.cameraController != null) {
+      final cameraController = _cameraService.cameraController!;
+      final size = MediaQuery.of(context).size;
+      // Calculer le ratio de l'écran
+      var scale = size.aspectRatio * cameraController.value.aspectRatio;
+
+      // S'assurer que la prévisualisation de la caméra remplit l'écran
+      if (scale < 1) scale = 1 / scale;
+
       return Stack(
         fit: StackFit.expand,
         children: [
-          Center(child: CameraPreview(_cameraService.cameraController!)),
+          ClipRect(
+            child: Transform.scale(
+              scale: scale,
+              child: Center(
+                child: CameraPreview(cameraController),
+              ),
+            ),
+          ),
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
@@ -144,21 +174,34 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(onPressed: _pickFiles, icon: const Icon(Icons.photo_library, color: Colors.white, size: 36)),
+                  IconButton(
+                      onPressed: _pickFiles,
+                      icon: const Icon(Icons.photo_library,
+                          color: Colors.white, size: 36)),
                   GestureDetector(
                     onTap: _takePicture,
                     child: Container(
-                      width: 72, height: 72,
-                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)),
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4)),
                     ),
                   ),
                   badges.Badge(
                     showBadge: _capturedImagePaths.isNotEmpty,
                     position: badges.BadgePosition.topEnd(top: -12, end: -12),
-                    badgeContent: Text('${_capturedImagePaths.length}', style: const TextStyle(color: Colors.white)),
+                    badgeContent: Text('${_capturedImagePaths.length}',
+                        style: const TextStyle(color: Colors.white)),
                     child: IconButton(
-                      onPressed: _capturedImagePaths.isNotEmpty ? _navigateToProcessingView : null,
-                      icon: Icon(Icons.send, color: _capturedImagePaths.isNotEmpty ? Colors.white : Colors.grey, size: 36),
+                      onPressed: _capturedImagePaths.isNotEmpty
+                          ? _navigateToProcessingView
+                          : null,
+                      icon: Icon(Icons.send,
+                          color: _capturedImagePaths.isNotEmpty
+                              ? Colors.white
+                              : Colors.grey,
+                          size: 36),
                     ),
                   ),
                 ],
