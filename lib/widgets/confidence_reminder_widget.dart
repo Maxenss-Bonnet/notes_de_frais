@@ -11,7 +11,7 @@ class ConfidenceReminderWidget extends StatelessWidget {
     this.onRetakePhoto,
   });
 
-  // Vérifie si au moins un champ a une confiance < 100%
+  // Vérifie si au moins un champ a une confiance < 80% (seuil cohérent avec les indicateurs visuels)
   bool _hasLowConfidence() {
     final confidences = [
       expense.amountConfidence,
@@ -22,8 +22,30 @@ class ConfidenceReminderWidget extends StatelessWidget {
       expense.normalizedMerchantNameConfidence,
     ];
 
-    return confidences
-        .any((confidence) => confidence != null && confidence < 1.0);
+    // Debug: Afficher les valeurs de confiance
+    // Note: Pour désactiver en production, remplacer debugPrint par
+    // if (kDebugMode) debugPrint(...)
+    debugPrint('=== CONFIDENCE VALUES ===');
+    debugPrint('Amount: ${expense.amountConfidence}');
+    debugPrint('Date: ${expense.dateConfidence}');
+    debugPrint('Company: ${expense.companyConfidence}');
+    debugPrint('VAT: ${expense.vatConfidence}');
+    debugPrint('Category: ${expense.categoryConfidence}');
+    debugPrint(
+        'Normalized Merchant: ${expense.normalizedMerchantNameConfidence}');
+
+    // Utiliser un seuil de 0.799 pour éviter les problèmes d'arrondi flottant
+    // et être cohérent avec les indicateurs visuels (vert >= 0.8)
+    const double confidenceThreshold = 0.799;
+
+    bool hasLowConfidence = confidences.any(
+        (confidence) => confidence != null && confidence < confidenceThreshold);
+
+    debugPrint(
+        'Has low confidence: $hasLowConfidence (threshold: $confidenceThreshold)');
+    debugPrint('=========================');
+
+    return hasLowConfidence;
   }
 
   @override

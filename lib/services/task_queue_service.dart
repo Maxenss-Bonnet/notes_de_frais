@@ -22,4 +22,33 @@ class TaskQueueService {
   Box<TaskModel> getTaskBox() {
     return _taskBox;
   }
+
+  /// Nettoie les tâches corrompues ou incompatibles
+  Future<void> cleanupCorruptedTasks() async {
+    final keysToRemove = <dynamic>[];
+    
+    for (final key in _taskBox.keys) {
+      try {
+        final task = _taskBox.get(key);
+        if (task == null) {
+          keysToRemove.add(key);
+          continue;
+        }
+        
+        // Vérifier que la tâche a des données valides
+        if (task.payload == null) {
+          print("Removing corrupted task with null payload: $key");
+          keysToRemove.add(key);
+        }
+      } catch (e) {
+        print("Removing corrupted task due to error: $key, error: $e");
+        keysToRemove.add(key);
+      }
+    }
+    
+    if (keysToRemove.isNotEmpty) {
+      await _taskBox.deleteAll(keysToRemove);
+      print("Cleaned up ${keysToRemove.length} corrupted tasks");
+    }
+  }
 }

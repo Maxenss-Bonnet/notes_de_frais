@@ -173,7 +173,7 @@ class _BatchResultViewState extends ConsumerState<BatchResultView> {
     );
   }
 
-  // Vérifie si au moins un champ a une confiance < 100%
+  // Vérifie si au moins un champ a une confiance < 80% (seuil cohérent avec les indicateurs visuels)
   bool _hasLowConfidence(ExpenseModel expense) {
     final confidences = [
       expense.amountConfidence,
@@ -184,8 +184,12 @@ class _BatchResultViewState extends ConsumerState<BatchResultView> {
       expense.normalizedMerchantNameConfidence,
     ];
 
-    return confidences
-        .any((confidence) => confidence != null && confidence < 1.0);
+    // Utiliser un seuil de 0.799 pour éviter les problèmes d'arrondi flottant
+    // et être cohérent avec les indicateurs visuels (vert >= 0.8)
+    const double confidenceThreshold = 0.799;
+    
+    return confidences.any((confidence) => 
+        confidence != null && confidence < confidenceThreshold);
   }
 
   @override

@@ -83,7 +83,7 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is ExpenseModelAdapter &&
-              runtimeType == other.runtimeType &&
-              typeId == other.typeId;
+      other is ExpenseModelAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
 }

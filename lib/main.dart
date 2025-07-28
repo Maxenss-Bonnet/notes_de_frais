@@ -19,7 +19,8 @@ Future<void> main() async {
   await Hive.initFlutter();
   Hive.registerAdapter(ExpenseModelAdapter());
   Hive.registerAdapter(TaskModelAdapter());
-  Hive.registerAdapter(TaskTypeAdapter());
+  Hive.registerAdapter(SendStatusAdapter()); // Nouvel adapter pour SendStatus
+  Hive.registerAdapter(TaskTypeAdapter()); // Adapter pour TaskType
   await Hive.openBox<ExpenseModel>('expenses');
   await Hive.openBox<TaskModel>('tasks');
 
