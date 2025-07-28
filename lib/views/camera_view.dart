@@ -22,6 +22,7 @@ class _CameraViewState extends ConsumerState<CameraView>
     with WidgetsBindingObserver {
   final CameraService _cameraService = CameraService();
   final List<String> _capturedImagePaths = [];
+  bool _isInitializing = false;
 
   @override
   void initState() {
@@ -31,9 +32,34 @@ class _CameraViewState extends ConsumerState<CameraView>
   }
 
   Future<void> _initialize() async {
-    await _cameraService.initializeCamera();
-    if (mounted) {
-      setState(() {});
+    if (_isInitializing) return;
+
+    _isInitializing = true;
+    try {
+      await _cameraService.initializeCamera();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print("Erreur lors de l'initialisation de la caméra: $e");
+    } finally {
+      _isInitializing = false;
+    }
+  }
+
+  Future<void> _resetCamera() async {
+    if (_isInitializing) return;
+
+    _isInitializing = true;
+    try {
+      await _cameraService.resetCamera();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print("Erreur lors de la réinitialisation de la caméra: $e");
+    } finally {
+      _isInitializing = false;
     }
   }
 
@@ -47,10 +73,13 @@ class _CameraViewState extends ConsumerState<CameraView>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      // Disposer de la caméra quand l'app passe en arrière-plan
       _cameraService.dispose();
     } else if (state == AppLifecycleState.resumed) {
-      if (!_cameraService.isCameraInitialized) {
+      // Réinitialiser la caméra quand l'app revient au premier plan
+      if (!_cameraService.isCameraInitialized && !_isInitializing) {
         _initialize();
       }
       ref.invalidate(unsentExpensesCountProvider);
@@ -76,11 +105,31 @@ class _CameraViewState extends ConsumerState<CameraView>
   }
 
   Future<void> _takePicture() async {
-    final imageFile = await _cameraService.takePicture();
-    if (imageFile != null) {
-      setState(() {
-        _capturedImagePaths.add(imageFile.path);
-      });
+    if (!_cameraService.isCameraInitialized ||
+        _cameraService.cameraController == null) {
+      print("Caméra non initialisée, impossible de prendre une photo");
+      return;
+    }
+
+    try {
+      final imageFile = await _cameraService.takePicture();
+      if (imageFile != null && mounted) {
+        setState(() {
+          _capturedImagePaths.add(imageFile.path);
+        });
+      }
+    } catch (e) {
+      print("Erreur lors de la prise de photo: $e");
+      // Optionnel : afficher un message d'erreur à l'utilisateur
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Erreur lors de la prise de photo. Veuillez réessayer.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -119,12 +168,40 @@ class _CameraViewState extends ConsumerState<CameraView>
   }
 
   Widget _buildCameraBody() {
+    if (_isInitializing) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Initialisation de la caméra...',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (_cameraService.isCameraInitialized &&
-        _cameraService.cameraController != null) {
+        _cameraService.cameraController != null &&
+        _cameraService.cameraController!.value.isInitialized) {
+      final cameraController = _cameraService.cameraController!;
+      final scale = 1 /
+          (cameraController.value.aspectRatio *
+              MediaQuery.of(context).size.aspectRatio);
       return Stack(
         fit: StackFit.expand,
         children: [
-          Center(child: CameraPreview(_cameraService.cameraController!)),
+          ClipRect(
+            clipper: _MediaSizeClipper(MediaQuery.of(context).size),
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.topCenter,
+              child: CameraPreview(cameraController),
+            ),
+          ),
           _BottomControls(
             onPickFiles: _pickFiles,
             onTakePicture: _takePicture,
@@ -145,8 +222,49 @@ class _CameraViewState extends ConsumerState<CameraView>
         ],
       );
     } else {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.camera_alt,
+              size: 64,
+              color: Colors.white54,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Caméra non disponible',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Vérifiez les permissions de caméra',
+              style: TextStyle(color: Colors.white54),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _resetCamera,
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      );
     }
+  }
+}
+
+class _MediaSizeClipper extends CustomClipper<Rect> {
+  final Size mediaSize;
+  const _MediaSizeClipper(this.mediaSize);
+
+  @override
+  Rect getClip(Size size) {
+    return Rect.fromLTWH(0, 0, mediaSize.width, mediaSize.height);
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Rect> oldClipper) {
+    return true;
   }
 }
 
@@ -170,12 +288,12 @@ class _CameraAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 builder: (context) => const StatisticsView()))),
         _AppBarAction(
           tooltip: 'Historique',
-          onPressed: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (context) => const HistoryView())),
+          onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const HistoryView())),
           child: badges.Badge(
             showBadge: unsentCount > 0,
-            badgeContent:
-            Text('$unsentCount', style: const TextStyle(color: Colors.white)),
+            badgeContent: Text('$unsentCount',
+                style: const TextStyle(color: Colors.white)),
             position: badges.BadgePosition.topEnd(top: -8, end: -5),
             child: const Icon(Icons.history),
           ),
@@ -218,7 +336,8 @@ class _BottomControls extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _BottomControlButton(onPressed: onPickFiles, icon: Icons.photo_library),
+            _BottomControlButton(
+                onPressed: onPickFiles, icon: Icons.photo_library),
             _TakePictureButton(onTap: onTakePicture),
             badges.Badge(
               showBadge: capturedImagePaths.isNotEmpty,
@@ -228,7 +347,8 @@ class _BottomControls extends StatelessWidget {
               child: _BottomControlButton(
                 onPressed: capturedImagePaths.isNotEmpty ? onSend : null,
                 icon: Icons.send,
-                color: capturedImagePaths.isNotEmpty ? Colors.white : Colors.grey,
+                color:
+                    capturedImagePaths.isNotEmpty ? Colors.white : Colors.grey,
               ),
             ),
           ],
@@ -267,9 +387,7 @@ class _BottomControlButton extends StatelessWidget {
   final Color color;
 
   const _BottomControlButton(
-      {required this.onPressed,
-        required this.icon,
-        this.color = Colors.white});
+      {required this.onPressed, required this.icon, this.color = Colors.white});
 
   @override
   Widget build(BuildContext context) {

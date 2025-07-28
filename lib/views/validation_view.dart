@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:notes_de_frais/controllers/expense_controller.dart';
 import 'package:notes_de_frais/models/expense_model.dart';
 import 'package:notes_de_frais/providers/providers.dart';
+import 'package:notes_de_frais/views/camera_view.dart';
+import 'package:notes_de_frais/widgets/confidence_reminder_widget.dart';
 
 class ValidationView extends ConsumerStatefulWidget {
   final ExpenseModel expense;
@@ -98,6 +100,15 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
     Navigator.of(context).pop(_editableExpense);
   }
 
+  void _onRetakePhoto() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (context) => const CameraView(),
+      ),
+      (route) => route.isFirst,
+    );
+  }
+
   Future<void> _onSaveAndClose() async {
     if (!_validateInputs()) return;
 
@@ -158,6 +169,29 @@ class _ValidationViewState extends ConsumerState<ValidationView> {
             children: [
               _ValidationImageSection(
                   imagePaths: _editableExpense.processedImagePaths),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _onRetakePhoto,
+                    icon: const Icon(Icons.camera_alt, size: 16),
+                    label: const Text('Reprendre la photo'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey.shade600,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      textStyle: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ),
+              ),
+              ConfidenceReminderWidget(
+                expense: _editableExpense,
+                onRetakePhoto: _onRetakePhoto,
+              ),
               const SizedBox(height: 24),
               _buildEditableDateField(
                   (_editableExpense.date ?? DateTime.now())),
