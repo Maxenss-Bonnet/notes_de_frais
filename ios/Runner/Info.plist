@@ -49,5 +49,11 @@
 	<string>Cette application a besoin d'accéder à la caméra pour scanner vos notes de frais.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Cette application a besoin d'accéder à votre galerie pour importer des photos de notes de frais.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Cette application n'utilise pas le micro, mais l'accès est requis par le système pour activer la caméra.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

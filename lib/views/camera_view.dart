@@ -10,6 +10,7 @@ import 'package:notes_de_frais/views/statistics_view.dart';
 import 'package:notes_de_frais/views/settings_view.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:notes_de_frais/widgets/animated_icon_button.dart';
+import 'package:notes_de_frais/widgets/platform_progress_indicator.dart';
 
 class CameraView extends ConsumerStatefulWidget {
   const CameraView({super.key});
@@ -160,10 +161,12 @@ class _CameraViewState extends ConsumerState<CameraView>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: const _CameraAppBar(),
-      body: _buildCameraBody(),
+    return SafeArea(
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: const _CameraAppBar(),
+        body: _buildCameraBody(),
+      ),
     );
   }
 
@@ -173,7 +176,7 @@ class _CameraViewState extends ConsumerState<CameraView>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
+            PlatformProgressIndicator(color: Colors.white),
             SizedBox(height: 16),
             Text(
               'Initialisation de la caméra...',
