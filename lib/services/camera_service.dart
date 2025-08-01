@@ -66,7 +66,7 @@ class CameraService {
       _isCameraInitialized = false;
     } finally {
       _isInitializing = false;
-    }
+    } 
   }
 
   Future<XFile?> takePicture() async {
