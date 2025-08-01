@@ -46,3 +46,5 @@ app.*.map.json
 
 # Secret files
 .env
+assets/credentialsEmplyer.json
+assets/credentials.json
